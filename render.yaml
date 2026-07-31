@@ -1,6 +1,6 @@
-previews:
-  - name: GlassChat
-    type: web
+services:
+  - type: web
+    name: glasschat
     env: docker
     plan: free
     healthCheckPath: /
