@@ -1,0 +1,14 @@
+{
+  "name": "glass-chat",
+  "version": "1.0.0",
+  "description": "面对面聊天网站 - 支持文字/图片/视频/语音通话/视频通话，苹果毛玻璃风格UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "express": "^4.18.2"
+  }
+}

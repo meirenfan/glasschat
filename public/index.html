@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GlassChat — 面对面聊天</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+</head>
+<body>
+
+  <!-- 动态背景 -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
+  <!-- 登录界面 -->
+  <div id="loginScreen" class="screen login-screen">
+    <div class="glass-card login-card">
+      <div class="login-logo">
+        <svg viewBox="0 0 120 120" width="80" height="80">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#007AFF"/>
+              <stop offset="50%" stop-color="#5AC8FA"/>
+              <stop offset="100%" stop-color="#BF5AF2"/>
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="50" fill="url(#logoGrad)" opacity="0.15"/>
+          <path d="M60 25 C42 25 28 38 28 54 C28 63 32 71 39 76 L36 88 L49 81 C53 83 57 84 60 84 C78 84 92 71 92 55 C92 38 78 25 60 25 Z" fill="url(#logoGrad)"/>
+        </svg>
+      </div>
+      <h1 class="login-title">GlassChat</h1>
+      <p class="login-subtitle">面对面聊天 · 晶莹通透</p>
+      <div class="login-form">
+        <input type="text" id="nameInput" class="glass-input" placeholder="输入你的昵称" maxlength="20" autocomplete="off">
+        <button id="joinBtn" class="glass-btn-primary">进入聊天</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="chatScreen" class="screen chat-screen hidden">
+
+    <!-- 侧边栏 - 联系人列表 -->
+    <aside class="sidebar glass-panel">
+      <div class="sidebar-header">
+        <div class="my-profile">
+          <div class="avatar" id="myAvatar">我</div>
+          <div class="my-info">
+            <span class="my-name" id="myName">用户</span>
+            <span class="my-status">在线</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" id="searchInput" class="glass-input-sm" placeholder="搜索联系人">
+      </div>
+      <div class="contact-list" id="contactList">
+        <div class="empty-contacts">暂无其他在线用户</div>
+      </div>
+    </aside>
+
+    <!-- 聊天区域 -->
+    <main class="chat-area">
+      <!-- 聊天头部 -->
+      <header class="chat-header glass-panel">
+        <div class="chat-header-info">
+          <div class="avatar-sm" id="chatPartnerAvatar">?</div>
+          <div>
+            <div class="chat-partner-name" id="chatPartnerName">选择一个联系人</div>
+            <div class="chat-partner-status" id="chatPartnerStatus">未选择</div>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="icon-btn" id="voiceCallBtn" title="语音通话" disabled>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="videoCallBtn" title="视频通话" disabled>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 消息区域 -->
+      <div class="messages-container" id="messagesContainer">
+        <div class="messages-welcome">
+          <div class="welcome-icon">💬</div>
+          <p>选择一位联系人开始聊天</p>
+          <p class="welcome-hint">支持文字、图片、视频消息及语音/视频通话</p>
+        </div>
+      </div>
+
+      <!-- 输入区域 -->
+      <footer class="input-area glass-panel">
+        <div class="input-actions">
+          <button class="icon-btn" id="imageBtn" title="发送图片" disabled>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="videoSendBtn" title="发送视频" disabled>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </button>
+        </div>
+        <input type="file" id="imageFileInput" accept="image/*" hidden>
+        <input type="file" id="videoFileInput" accept="video/*" hidden>
+        <input type="text" id="messageInput" class="message-input" placeholder="输入消息..." disabled autocomplete="off">
+        <button class="send-btn" id="sendBtn" disabled>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </footer>
+    </main>
+  </div>
+
+  <!-- 通话界面 -->
+  <div id="callScreen" class="call-overlay hidden">
+    <div class="call-container glass-card-dark">
+      <!-- 视频区域 -->
+      <div class="call-videos">
+        <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+        <video id="localVideo" class="local-video" autoplay playsinline muted></video>
+      </div>
+      <!-- 语音通话占位 -->
+      <div id="audioCallView" class="audio-call-view hidden">
+        <div class="audio-avatar" id="callAvatar">?</div>
+        <div class="call-name" id="callName">通话中</div>
+        <div class="call-timer" id="callTimer">00:00</div>
+        <div class="call-status-text" id="callStatusText">正在连接...</div>
+      </div>
+      <!-- 通话控制 -->
+      <div class="call-controls">
+        <button class="call-control-btn" id="muteBtn" title="静音">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </button>
+        <button class="call-control-btn" id="videoToggleBtn" title="关闭摄像头">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </button>
+        <button class="call-control-btn hangup" id="hangupBtn" title="挂断">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+            <line x1="23" y1="1" x2="1" y2="23"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 来电弹窗 -->
+  <div id="incomingCallModal" class="modal-overlay hidden">
+    <div class="glass-card modal-card">
+      <div class="incoming-avatar" id="incomingAvatar">?</div>
+      <div class="incoming-name" id="incomingName">来电</div>
+      <div class="incoming-type" id="incomingType">语音通话</div>
+      <div class="incoming-actions">
+        <button class="call-reject-btn" id="rejectCallBtn">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="23" y1="1" x2="1" y2="23"/>
+            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+          </svg>
+        </button>
+        <button class="call-accept-btn" id="acceptCallBtn">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 通知 -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

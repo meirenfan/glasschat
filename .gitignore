@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# logs
+*.log
+npm-debug.log*
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+# env
+.env
+.env.local
