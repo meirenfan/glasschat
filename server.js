@@ -2,13 +2,50 @@ const express = require('express');
 const WebSocket = require('ws');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server, path: '/ws' });
+
+// WebSocket 不限制消息大小，支持大文件元数据传输
+const wss = new WebSocket.Server({ server, path: '/ws', maxPayload: 0 });
+
+// 上传文件存储目录
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// multer 配置：文件上传，无大小限制
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    const name = crypto.randomBytes(16).toString('hex') + ext;
+    cb(null, name);
+  }
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: Infinity } // 无大小限制
+});
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 文件上传接口（图片/视频，无大小限制）
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: '未收到文件' });
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const mediaType = req.file.mimetype.startsWith('image/') ? 'image'
+                  : req.file.mimetype.startsWith('video/') ? 'video'
+                  : 'file';
+  res.json({ url: fileUrl, mediaType, size: req.file.size });
+});
 
 // 存储所有连接的客户端
 const clients = new Map();

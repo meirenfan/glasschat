@@ -331,21 +331,40 @@ function receiveMessage(fromId, fromName, content, mediaType, timestamp) {
   renderContacts();
 }
 
-// ===== 文件发送 =====
+// ===== 文件发送（HTTP 上传，无大小限制）=====
 function handleFileSelect(file, mediaType) {
   if (!file || !selectedContact) return;
 
-  const maxSize = mediaType === 'image' ? 5 * 1024 * 1024 : 15 * 1024 * 1024;
-  if (file.size > maxSize) {
-    showToast(`${mediaType === 'image' ? '图片' : '视频'}不能超过 ${maxSize/1024/1024}MB`);
-    return;
-  }
+  const label = mediaType === 'image' ? '图片' : '视频';
+  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+  showToast(`正在上传${label}（${sizeMB}MB）...`, 3000);
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    sendMessage(e.target.result, mediaType);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload');
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const percent = Math.round((e.loaded / e.total) * 100);
+      showToast(`上传中 ${percent}%`, 1500);
+    }
   };
-  reader.readAsDataURL(file);
+
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      const res = JSON.parse(xhr.responseText);
+      // 发送的是文件 URL，消息体很小
+      sendMessage(res.url, res.mediaType);
+      showToast(`${label}发送成功`, 1500);
+    } else {
+      showToast(`上传失败：${xhr.status}`, 3000);
+    }
+  };
+
+  xhr.onerror = () => showToast('网络错误，上传失败', 3000);
+  xhr.send(formData);
 }
 
 // ===== WebRTC 通话 =====

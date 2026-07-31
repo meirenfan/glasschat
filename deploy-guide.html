@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GlassChat 部署指南</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
+      background: linear-gradient(135deg, #0a0a1e 0%, #1a1a3e 50%, #0f0f23 100%);
+      color: #e0e0f0;
+      min-height: 100vh;
+      padding: 0;
+      line-height: 1.6;
+    }
+    .hero {
+      background: linear-gradient(135deg, rgba(0,122,255,0.15), rgba(191,90,242,0.15));
+      backdrop-filter: blur(20px);
+      padding: 40px 20px 30px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .hero h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #5AC8FA, #BF5AF2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .hero p { font-size: 14px; color: #8e8ea0; }
+    .container { max-width: 680px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    .platform-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (min-width: 600px) {
+      .platform-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+    .card:hover { border-color: rgba(90,200,250,0.4); }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 100px;
+      margin-bottom: 8px;
+    }
+    .badge-best { background: rgba(52,199,89,0.2); color: #34C759; }
+    .badge-easy { background: rgba(0,122,255,0.2); color: #5AC8FA; }
+
+    .card h2 { font-size: 20px; margin-bottom: 4px; }
+    .card .desc { font-size: 13px; color: #8e8ea0; margin-bottom: 12px; }
+    .card .pros { font-size: 13px; color: #34C759; margin-bottom: 4px; }
+
+    .step-list { counter-reset: step; margin-top: 12px; }
+    .step {
+      position: relative;
+      padding-left: 36px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: -2px;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #007AFF, #5856D6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .step strong { color: #5AC8FA; }
+
+    a.link {
+      color: #5AC8FA;
+      text-decoration: none;
+      word-break: break-all;
+      border-bottom: 1px solid rgba(90,200,250,0.3);
+    }
+    a.link:hover { border-bottom-color: #5AC8FA; }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #007AFF, #5856D6);
+      color: #fff !important;
+      text-decoration: none !important;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none !important;
+      margin-top: 8px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 28px 0 14px;
+      padding-left: 12px;
+      border-left: 3px solid #5AC8FA;
+    }
+
+    .note {
+      background: rgba(255,149,0,0.1);
+      border: 1px solid rgba(255,149,0,0.2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      margin: 16px 0;
+      color: #FFB84D;
+    }
+
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .compare-table th, .compare-table td {
+      padding: 10px 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .compare-table th { color: #5AC8FA; font-weight: 600; }
+    .compare-table .yes { color: #34C759; }
+    .compare-table .no { color: #FF3B30; }
+
+    code {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #BF5AF2;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>GlassChat 部署指南</h1>
+    <p>长期免费托管 · 全球可访问 · 支持通话功能</p>
+  </div>
+
+  <div class="container">
+
+    <div class="note">
+      <strong>前提条件：</strong>所有平台都需要先将代码上传到 GitHub。请先按下方"第一步"注册 GitHub 并上传代码。
+    </div>
+
+    <!-- 第一步：GitHub -->
+    <div class="section-title">第一步：上传代码到 GitHub</div>
+    <div class="card">
+      <div class="step-list">
+        <div class="step">用手机浏览器打开 <a class="link" href="https://github.com/signup" target="_blank">github.com/signup</a>，注册一个免费账号</div>
+        <div class="step">登录后，点击右上角 <strong>"+"</strong> → <strong>"New repository"</strong></div>
+        <div class="step">仓库名填 <code>glasschat</code>，选择 <strong>Public</strong>，点击 <strong>"Create repository"</strong></div>
+        <div class="step">在仓库页面点击 <strong>"uploading an existing file"</strong> 链接</div>
+        <div class="step">将以下所有文件拖入或选择上传（保留目录结构）：<br>
+          <code>package.json</code> <code>server.js</code> <code>Dockerfile</code> <code>render.yaml</code> <code>railway.json</code> <code>fly.toml</code> <code>.gitignore</code><br>
+          以及 <code>public/</code> 文件夹（含 index.html、css/style.css、js/app.js）</div>
+        <div class="step">点击 <strong>"Commit changes"</strong> 提交</div>
+      </div>
+      <p style="font-size:13px;color:#8e8ea0;margin-top:8px;">提示：手机上传文件夹不方便的话，可以用 GitHub 手机 App 操作，或用电脑操作这一步。</p>
+    </div>
+
+    <!-- 平台选择 -->
+    <div class="section-title">第二步：选择部署平台（推荐 Render）</div>
+
+    <div class="platform-grid">
+
+      <!-- Render -->
+      <div class="card">
+        <span class="badge badge-best">最推荐</span>
+        <h2>Render</h2>
+        <p class="desc">免费套餐永久可用，支持 WebSocket，部署最简单</p>
+        <p class="pros">✓ 免费永久托管</p>
+        <p class="pros">✓ 自动 HTTPS</p>
+        <p class="pros">✓ 从 GitHub 自动部署</p>
+        <div class="step-list">
+          <div class="step">打开 <a class="link" href="https://render.com" target="_blank">render.com</a>，用 GitHub 账号登录</div>
+          <div class="step">点击 <strong>"New +"</strong> → <strong>"Web Service"</strong></div>
+          <div class="step">选择你刚创建的 <code>glasschat</code> 仓库</div>
+          <div class="step">配置：<br>• Name: <code>glasschat</code><br>• Runtime: <strong>Node</strong><br>• Build Command: <code>npm install</code><br>• Start Command: <code>node server.js</code></div>
+          <div class="step">选择 <strong>Free</strong> 套餐，点击 <strong>"Create Web Service"</strong></div>
+          <div class="step">等待 2-3 分钟构建完成，获得公网链接<br>如 <code>https://glasschat.onrender.com</code></div>
+        </div>
+        <a class="btn" href="https://render.com" target="_blank">前往 Render</a>
+      </div>
+
+      <!-- Railway -->
+      <div class="card">
+        <span class="badge badge-easy">简单</span>
+        <h2>Railway</h2>
+        <p class="desc">一键部署，每月 $5 免费额度，速度更快</p>
+        <p class="pros">✓ 一键从 GitHub 部署</p>
+        <p class="pros">✓ 自动识别 Dockerfile</p>
+        <p class="pros">✓ 全球 CDN 加速</p>
+        <div class="step-list">
+          <div class="step">打开 <a class="link" href="https://railway.app" target="_blank">railway.app</a>，用 GitHub 登录</div>
+          <div class="step">点击 <strong>"New Project"</strong> → <strong>"Deploy from GitHub repo"</strong></div>
+          <div class="step">选择 <code>glasschat</code> 仓库</div>
+          <div class="step">Railway 会自动识别 <code>railway.json</code> 和 <code>Dockerfile</code></div>
+          <div class="step">点击 <strong>"Deploy"</strong>，等待构建完成</div>
+          <div class="step">在 Settings 中生成域名<br>如 <code>glasschat.up.railway.app</code></div>
+        </div>
+        <a class="btn" href="https://railway.app" target="_blank">前往 Railway</a>
+      </div>
+
+      <!-- Fly.io -->
+      <div class="card">
+        <h2>Fly.io</h2>
+        <p class="desc">全球边缘节点，免费 3 个小型 VM</p>
+        <p class="pros">✓ 3 个免费共享 CPU VM</p>
+        <p class="pros">✓ 全球节点低延迟</p>
+        <p class="pros">✓ 支持 WebSocket</p>
+        <div class="step-list">
+          <div class="step">打开 <a class="link" href="https://fly.io" target="_blank">fly.io</a> 注册账号</div>
+          <div class="step">需要安装 flyctl CLI 工具（电脑端操作）</div>
+          <div class="step">运行 <code>fly launch</code> 自动部署</div>
+          <div class="step">运行 <code>fly deploy</code> 发布</div>
+        </div>
+        <p style="font-size:12px;color:#8e8ea0;margin-top:8px;">需要命令行操作，建议用电脑</p>
+      </div>
+
+      <!-- Vercel 不适用说明 -->
+      <div class="card" style="opacity:0.5;">
+        <h2>Vercel</h2>
+        <p class="desc">不适用 - 不支持 WebSocket</p>
+        <p style="color:#FF3B30;font-size:13px;">✗ Vercel 是 Serverless 平台，不支持长连接 WebSocket，无法用于本项目。</p>
+      </div>
+
+    </div>
+
+    <!-- 平台对比 -->
+    <div class="section-title">平台对比</div>
+    <div class="card">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>平台</th>
+            <th>免费额度</th>
+            <th>WebSocket</th>
+            <th>手机部署</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Render</td>
+            <td>永久免费</td>
+            <td class="yes">✓ 支持</td>
+            <td class="yes">✓ 可操作</td>
+          </tr>
+          <tr>
+            <td>Railway</td>
+            <td>$5/月额度</td>
+            <td class="yes">✓ 支持</td>
+            <td class="yes">✓ 可操作</td>
+          </tr>
+          <tr>
+            <td>Fly.io</td>
+            <td>3 个免费 VM</td>
+            <td class="yes">✓ 支持</td>
+            <td class="no">✗ 需电脑</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 注意事项 -->
+    <div class="section-title">注意事项</div>
+    <div class="card">
+      <p style="font-size:14px;margin-bottom:10px;">• <strong>Render 免费套餐</strong>：15 分钟无访问会休眠，再次访问时自动唤醒（约 30 秒延迟）。如果需要常驻运行，可升级到付费套餐（$7/月）。</p>
+      <p style="font-size:14px;margin-bottom:10px;">• <strong>WebRTC 通话</strong>需要 HTTPS 环境，以上平台均自动提供 HTTPS 证书。</p>
+      <p style="font-size:14px;margin-bottom:10px;">• <strong>通话连接受 P2P 限制</strong>，部分网络环境可能需要 TURN 服务器（可后续添加）。</p>
+      <p style="font-size:14px;">• 建议优先选择 <strong>Render</strong>，手机浏览器即可完成全部操作。</p>
+    </div>
+
+    <div style="text-align:center;margin-top:30px;">
+      <p style="font-size:13px;color:#8e8ea0;">GlassChat — 面对面聊天 · 苹果毛玻璃风格</p>
+    </div>
+
+  </div>
+
+</body>
+</html>
