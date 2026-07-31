@@ -16,3 +16,8 @@ Thumbs.db
 # env
 .env
 .env.local
+
+# uploads and temp files
+.uploads/
+*.zip
+public/uploads/
