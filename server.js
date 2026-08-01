@@ -285,7 +285,10 @@ app.post('/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: '未收到文件' });
   }
   const fileUrl = `/uploads/${req.file.filename}`;
-  const mediaType = req.file.mimetype.startsWith('image/') ? 'image'
+  // 加密文件 mimetype 不准确，优先使用客户端传入的 mediaType 参数
+  const clientMediaType = req.body.mediaType;
+  const mediaType = ['image', 'video'].includes(clientMediaType) ? clientMediaType
+                  : req.file.mimetype.startsWith('image/') ? 'image'
                   : req.file.mimetype.startsWith('video/') ? 'video'
                   : 'file';
   res.json({ url: fileUrl, mediaType, size: req.file.size });

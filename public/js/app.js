@@ -604,13 +604,15 @@ function escapeHtml(text) {
 async function sendMessage(content, mediaType = 'text') {
   if (!selectedContact) return;
 
-  // 加密内容
+  // 文字消息需要加密，图片/视频的 URL 不加密（文件本身已加密）
   let encryptedContent = content;
-  try {
-    encryptedContent = await encryptText(content, selectedContact.id);
-  } catch (err) {
-    showToast('加密失败，消息未发送');
-    return;
+  if (mediaType === 'text') {
+    try {
+      encryptedContent = await encryptText(content, selectedContact.id);
+    } catch (err) {
+      showToast('加密失败，消息未发送');
+      return;
+    }
   }
 
   sendWS({
@@ -680,6 +682,7 @@ async function handleFileSelect(file, mediaType) {
 
     const formData = new FormData();
     formData.append('file', encryptedBlob, 'encrypted.dat');
+    formData.append('mediaType', mediaType);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload');
@@ -694,7 +697,8 @@ async function handleFileSelect(file, mediaType) {
     xhr.onload = () => {
       if (xhr.status === 200) {
         const res = JSON.parse(xhr.responseText);
-        sendMessage(res.url, res.mediaType);
+        // 直接使用已知的 mediaType，不依赖服务器判断（因为加密文件 mimetype 不准确）
+        sendMessage(res.url, mediaType);
         showToast(`${label}发送成功`, 1500);
       } else {
         showToast(`上传失败：${xhr.status}`, 3000);
