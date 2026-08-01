@@ -493,6 +493,13 @@ body {
   padding: 0 4px;
 }
 
+.media-loading {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--gray);
+}
+
 /* 输入区域 */
 .input-area {
   display: flex;

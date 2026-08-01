@@ -53,7 +53,7 @@ let clientIdCounter = 0;
 
 wss.on('connection', (ws) => {
   const clientId = ++clientIdCounter;
-  const userInfo = { id: clientId, name: '', ws };
+  const userInfo = { id: clientId, name: '', publicKey: '', ws };
 
   clients.set(clientId, userInfo);
   console.log(`用户 ${clientId} 已连接，当前在线: ${clients.size}`);
@@ -75,6 +75,7 @@ wss.on('connection', (ws) => {
     switch (msg.type) {
       case 'set-name':
         userInfo.name = msg.name || `用户${clientId}`;
+        userInfo.publicKey = msg.publicKey || '';
         ws.send(JSON.stringify({ type: 'name-set', name: userInfo.name }));
         broadcastUserList();
         break;
@@ -153,7 +154,7 @@ function broadcast(message, excludeWs) {
 function broadcastUserList() {
   const userList = [];
   clients.forEach((client) => {
-    userList.push({ id: client.id, name: client.name || `用户${client.id}` });
+    userList.push({ id: client.id, name: client.name || `用户${client.id}`, publicKey: client.publicKey });
   });
   broadcast({ type: 'user-list', users: userList });
 }

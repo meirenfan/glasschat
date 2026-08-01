@@ -72,13 +72,15 @@ function getInitial(name) {
 }
 
 // ===== WebSocket 连接 =====
-function connectWebSocket() {
+async function connectWebSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
-  ws.onopen = () => {
+  ws.onopen = async () => {
     console.log('WebSocket 已连接');
-    ws.send(JSON.stringify({ type: 'set-name', name: myName }));
+    // 生成密钥对
+    await generateKeyPair();
+    ws.send(JSON.stringify({ type: 'set-name', name: myName, publicKey: myPublicKeyBase64 }));
   };
 
   ws.onmessage = (event) => {
@@ -101,7 +103,7 @@ function sendWS(msg) {
 }
 
 // ===== 消息处理 =====
-function handleMessage(msg) {
+async function handleMessage(msg) {
   switch (msg.type) {
     case 'assigned-id':
       myId = msg.id;
@@ -115,6 +117,17 @@ function handleMessage(msg) {
 
     case 'user-list':
       onlineUsers = msg.users.filter(u => u.id !== myId);
+      // 为每个在线用户派生共享密钥
+      for (const user of onlineUsers) {
+        if (user.publicKey && !sharedSecrets[user.id]) {
+          try {
+            await deriveSharedSecret(user.publicKey, user.id);
+            console.log(`已与用户 ${user.name} 建立加密通道`);
+          } catch (err) {
+            console.error('派生共享密钥失败:', err);
+          }
+        }
+      }
       renderContacts();
       break;
 
@@ -191,7 +204,7 @@ function renderContacts() {
         <div class="contact-avatar" style="background:${getAvatarColor(u.name)}">${getInitial(u.name)}</div>
         <div class="contact-info">
           <div class="contact-name">${u.name}</div>
-          <div class="contact-last">${lastMsg ? (lastMsg.mediaType === 'image' ? '[图片]' : lastMsg.mediaType === 'video' ? '[视频]' : lastMsg.content) : '在线'}</div>
+          <div class="contact-last">${lastMsg ? (lastMsg.mediaType === 'image' ? '[图片]' : lastMsg.mediaType === 'video' ? '[视频]' : (lastMsg.content.startsWith('enc:') ? '[消息]' : lastMsg.content)) : '在线'}</div>
         </div>
         <div class="online-dot"></div>
       </div>
@@ -262,7 +275,7 @@ function resetChatSelection() {
 }
 
 // ===== 聊天消息 =====
-function renderMessages() {
+async function renderMessages() {
   if (!selectedContact) return;
   const msgs = conversations[selectedContact.id] || [];
 
@@ -275,14 +288,41 @@ function renderMessages() {
     return;
   }
 
-  $('messagesContainer').innerHTML = msgs.map(m => {
+  // 异步渲染，先显示文字消息，图片视频异步解密
+  const htmlParts = msgs.map((m, index) => {
     const isSent = m.from === myId;
     let content = '';
 
     if (m.mediaType === 'image') {
-      content = `<img src="${m.content}" alt="图片" onclick="window.open('${m.content}','_blank')">`;
+      const placeholderId = `media-${index}-${Date.now()}`;
+      content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
+      // 异步解密图片
+      if (m.from !== myId) {
+        fetchAndDecryptFile(m.content, m.from).then(blobUrl => {
+          const el = document.getElementById(placeholderId);
+          if (el) el.outerHTML = `<img src="${blobUrl}" alt="图片" onclick="window.open('${blobUrl}','_blank')">`;
+        }).catch(() => {
+          const el = document.getElementById(placeholderId);
+          if (el) el.textContent = '[图片解密失败]';
+        });
+      } else {
+        // 自己发的，content 是原始 URL，直接显示
+        content = `<img src="${m.content}" alt="图片" onclick="window.open('${m.content}','_blank')">`;
+      }
     } else if (m.mediaType === 'video') {
-      content = `<video src="${m.content}" controls></video>`;
+      const placeholderId = `media-${index}-${Date.now()}`;
+      content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
+      if (m.from !== myId) {
+        fetchAndDecryptFile(m.content, m.from).then(blobUrl => {
+          const el = document.getElementById(placeholderId);
+          if (el) el.outerHTML = `<video src="${blobUrl}" controls></video>`;
+        }).catch(() => {
+          const el = document.getElementById(placeholderId);
+          if (el) el.textContent = '[视频解密失败]';
+        });
+      } else {
+        content = `<video src="${m.content}" controls></video>`;
+      }
     } else {
       content = `<div>${escapeHtml(m.content)}</div>`;
     }
@@ -297,6 +337,8 @@ function renderMessages() {
       </div>`;
   }).join('');
 
+  $('messagesContainer').innerHTML = htmlParts;
+
   // 滚动到底部
   $('messagesContainer').scrollTop = $('messagesContainer').scrollHeight;
 }
@@ -307,17 +349,26 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function sendMessage(content, mediaType = 'text') {
+async function sendMessage(content, mediaType = 'text') {
   if (!selectedContact) return;
+
+  // 加密内容
+  let encryptedContent = content;
+  try {
+    encryptedContent = await encryptText(content, selectedContact.id);
+  } catch (err) {
+    showToast('加密失败，消息未发送');
+    return;
+  }
 
   sendWS({
     type: 'private-message',
     to: selectedContact.id,
-    content,
+    content: encryptedContent,
     mediaType
   });
 
-  // 本地显示
+  // 本地显示（存储明文）
   if (!conversations[selectedContact.id]) conversations[selectedContact.id] = [];
   conversations[selectedContact.id].push({
     from: myId,
@@ -331,12 +382,22 @@ function sendMessage(content, mediaType = 'text') {
   renderContacts();
 }
 
-function receiveMessage(fromId, fromName, content, mediaType, timestamp) {
+async function receiveMessage(fromId, fromName, content, mediaType, timestamp) {
+  // 解密内容
+  let decryptedContent = content;
+  if (mediaType === 'text') {
+    try {
+      decryptedContent = await decryptText(content, fromId);
+    } catch (err) {
+      decryptedContent = '[解密失败]';
+    }
+  }
+
   if (!conversations[fromId]) conversations[fromId] = [];
   conversations[fromId].push({
     from: fromId,
     name: fromName,
-    content,
+    content: decryptedContent,
     mediaType,
     timestamp
   });
@@ -349,40 +410,51 @@ function receiveMessage(fromId, fromName, content, mediaType, timestamp) {
   renderContacts();
 }
 
-// ===== 文件发送（HTTP 上传，无大小限制）=====
-function handleFileSelect(file, mediaType) {
+// ===== 文件发送（加密后上传，无大小限制）=====
+async function handleFileSelect(file, mediaType) {
   if (!file || !selectedContact) return;
 
   const label = mediaType === 'image' ? '图片' : '视频';
   const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-  showToast(`正在上传${label}（${sizeMB}MB）...`, 3000);
+  showToast(`正在加密并上传${label}（${sizeMB}MB）...`, 3000);
 
-  const formData = new FormData();
-  formData.append('file', file);
+  try {
+    // 读取文件
+    const fileBuffer = await file.arrayBuffer();
+    // 加密文件
+    const encryptedBuffer = await encryptFile(fileBuffer, selectedContact.id);
+    // 创建加密后的 Blob
+    const encryptedBlob = new Blob([encryptedBuffer]);
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/upload');
+    const formData = new FormData();
+    formData.append('file', encryptedBlob, 'encrypted.dat');
 
-  xhr.upload.onprogress = (e) => {
-    if (e.lengthComputable) {
-      const percent = Math.round((e.loaded / e.total) * 100);
-      showToast(`上传中 ${percent}%`, 1500);
-    }
-  };
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
 
-  xhr.onload = () => {
-    if (xhr.status === 200) {
-      const res = JSON.parse(xhr.responseText);
-      // 发送的是文件 URL，消息体很小
-      sendMessage(res.url, res.mediaType);
-      showToast(`${label}发送成功`, 1500);
-    } else {
-      showToast(`上传失败：${xhr.status}`, 3000);
-    }
-  };
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        showToast(`上传中 ${percent}%`, 1500);
+      }
+    };
 
-  xhr.onerror = () => showToast('网络错误，上传失败', 3000);
-  xhr.send(formData);
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const res = JSON.parse(xhr.responseText);
+        sendMessage(res.url, res.mediaType);
+        showToast(`${label}发送成功`, 1500);
+      } else {
+        showToast(`上传失败：${xhr.status}`, 3000);
+      }
+    };
+
+    xhr.onerror = () => showToast('网络错误，上传失败', 3000);
+    xhr.send(formData);
+  } catch (err) {
+    console.error('文件加密失败:', err);
+    showToast('文件加密失败', 3000);
+  }
 }
 
 // ===== WebRTC 通话 =====
