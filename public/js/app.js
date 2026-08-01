@@ -216,11 +216,27 @@ function selectContact(userId) {
   $('videoSendBtn').disabled = false;
   $('voiceCallBtn').disabled = false;
   $('videoCallBtn').disabled = false;
-  $('messageInput').focus();
 
   // 渲染消息
   renderMessages();
   renderContacts();
+
+  // 移动端：切换到聊天界面
+  showChatOnMobile();
+}
+
+function showChatOnMobile() {
+  const sidebar = document.querySelector('.sidebar');
+  const chatArea = document.querySelector('.chat-area');
+  if (sidebar) sidebar.classList.add('slide-out');
+  if (chatArea) chatArea.classList.add('slide-in');
+}
+
+function showContactsOnMobile() {
+  const sidebar = document.querySelector('.sidebar');
+  const chatArea = document.querySelector('.chat-area');
+  if (sidebar) sidebar.classList.remove('slide-out');
+  if (chatArea) chatArea.classList.remove('slide-in');
 }
 
 function resetChatSelection() {
@@ -241,6 +257,8 @@ function resetChatSelection() {
       <p>选择一位联系人开始聊天</p>
       <p class="welcome-hint">支持文字、图片、视频消息及语音/视频通话</p>
     </div>`;
+  // 移动端：返回联系人列表
+  showContactsOnMobile();
 }
 
 // ===== 聊天消息 =====
@@ -763,6 +781,11 @@ function bindEvents() {
   // 来电弹窗
   $('acceptCallBtn').addEventListener('click', acceptCall);
   $('rejectCallBtn').addEventListener('click', rejectCall);
+
+  // 移动端返回按钮
+  $('backBtn').addEventListener('click', () => {
+    showContactsOnMobile();
+  });
 
   // 窗口关闭时清理
   window.addEventListener('beforeunload', () => {

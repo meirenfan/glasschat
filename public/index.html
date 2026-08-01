@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>GlassChat — 面对面聊天</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -69,6 +69,11 @@
       <!-- 聊天头部 -->
       <header class="chat-header glass-panel">
         <div class="chat-header-info">
+          <button class="icon-btn back-btn" id="backBtn" title="返回">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
           <div class="avatar-sm" id="chatPartnerAvatar">?</div>
           <div>
             <div class="chat-partner-name" id="chatPartnerName">选择一个联系人</div>

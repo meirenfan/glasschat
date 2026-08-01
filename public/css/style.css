@@ -765,24 +765,208 @@ body {
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-/* ===== 响应式 ===== */
+/* ===== 返回按钮（默认隐藏，移动端显示）===== */
+.back-btn { display: none; }
+
+/* ===== 移动端适配 ===== */
 @media (max-width: 768px) {
+  /* 安全区域 */
+  .sidebar-header,
+  .chat-header,
+  .input-area,
+  .call-controls {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .input-area,
+  .call-controls {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* 登录卡片 */
+  .login-card {
+    padding: 32px 24px;
+    width: 92vw;
+    max-width: 380px;
+  }
+  .login-title { font-size: 28px; }
+  .login-subtitle { font-size: 14px; margin-bottom: 24px; }
+
+  /* 主界面：侧边栏和聊天区切换 */
+  .chat-screen {
+    flex-direction: column;
+  }
+
   .sidebar {
     width: 100%;
     min-width: 0;
+    height: 100vh;
     position: absolute;
+    inset: 0;
     z-index: 10;
     transform: translateX(0);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 
-  .sidebar.hidden-mobile { transform: translateX(-100%); }
+  /* 选中联系人后隐藏侧边栏 */
+  .sidebar.slide-out {
+    transform: translateX(-100%);
+  }
 
-  .chat-area { width: 100%; }
+  .chat-area {
+    width: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
 
-  .local-video { width: 100px; height: 140px; }
+  .chat-area.slide-in {
+    transform: translateX(0);
+    z-index: 10;
+  }
 
-  .message-bubble { max-width: 80%; }
+  /* 显示返回按钮 */
+  .back-btn {
+    display: flex;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
 
-  .incoming-actions { gap: 40px; }
+  /* 侧边栏 */
+  .sidebar-header { padding: 16px 16px 12px; }
+  .sidebar-search { padding: 8px 12px; }
+  .avatar { width: 38px; height: 38px; font-size: 14px; }
+  .my-name { font-size: 15px; }
+  .contact-item { padding: 12px 10px; }
+  .contact-avatar { width: 42px; height: 42px; font-size: 15px; }
+  .contact-name { font-size: 15px; }
+  .contact-last { font-size: 13px; }
+
+  /* 聊天头部 */
+  .chat-header {
+    padding: 10px 12px;
+    min-height: 52px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  }
+  .chat-header-info { gap: 8px; }
+  .avatar-sm { width: 34px; height: 34px; font-size: 13px; }
+  .chat-partner-name { font-size: 15px; }
+  .chat-partner-status { font-size: 11px; }
+  .chat-header-actions { gap: 4px; }
+  .icon-btn { width: 36px; height: 36px; }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  /* 消息区域 */
+  .messages-container {
+    padding: 12px 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .welcome-icon { font-size: 40px; }
+  .messages-welcome p { font-size: 15px; }
+  .welcome-hint { font-size: 12px !important; }
+
+  /* 消息气泡 */
+  .message-bubble {
+    max-width: 78%;
+    padding: 9px 14px;
+    font-size: 15px;
+    border-radius: 18px;
+  }
+  .message-bubble img { border-radius: 12px; }
+  .message-bubble video { border-radius: 12px; }
+  .message-meta { font-size: 10px; }
+
+  /* 输入区域 */
+  .input-area {
+    padding: 8px 10px;
+    min-height: 52px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+  }
+  .input-actions { gap: 2px; }
+  .message-input {
+    padding: 9px 14px;
+    font-size: 16px; /* 16px 防止 iOS 自动缩放 */
+    border-radius: 18px;
+  }
+  .send-btn { width: 36px; height: 36px; }
+  .send-btn svg { width: 18px; height: 18px; }
+
+  /* 通话界面 */
+  .local-video {
+    width: 90px;
+    height: 130px;
+    border-radius: 14px;
+    bottom: 16px;
+    right: 16px;
+  }
+  .audio-avatar {
+    width: 100px;
+    height: 100px;
+    font-size: 38px;
+  }
+  .call-name { font-size: 22px; }
+  .call-timer { font-size: 15px; }
+  .call-controls {
+    gap: 20px;
+    padding: 24px 16px 40px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .call-control-btn { width: 54px; height: 54px; }
+  .call-control-btn svg { width: 24px; height: 24px; }
+
+  /* 来电弹窗 */
+  .modal-card {
+    padding: 32px 28px;
+    width: 88vw;
+    max-width: 320px;
+  }
+  .incoming-avatar { width: 80px; height: 80px; font-size: 30px; }
+  .incoming-name { font-size: 22px; }
+  .incoming-type { font-size: 14px; margin-bottom: 24px; }
+  .incoming-actions { gap: 50px; }
+  .call-reject-btn, .call-accept-btn { width: 60px; height: 60px; }
+  .call-reject-btn svg, .call-accept-btn svg { width: 26px; height: 26px; }
+
+  /* Toast */
+  .toast {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    padding: 10px 20px;
+    font-size: 13px;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  /* 动态背景球缩小，减少性能消耗 */
+  .orb { filter: blur(40px); opacity: 0.3; }
+  .orb-1 { width: 200px; height: 200px; }
+  .orb-2 { width: 180px; height: 180px; }
+  .orb-3 { width: 150px; height: 150px; }
+  .orb-4 { width: 130px; height: 130px; }
+}
+
+/* ===== 小屏手机 ===== */
+@media (max-width: 375px) {
+  .login-card { padding: 24px 18px; }
+  .login-title { font-size: 24px; }
+  .message-bubble { max-width: 85%; font-size: 14px; }
+  .contact-avatar { width: 38px; height: 38px; font-size: 14px; }
+  .call-controls { gap: 16px; }
+  .call-control-btn { width: 48px; height: 48px; }
+  .local-video { width: 80px; height: 110px; }
+}
+
+/* ===== 横屏适配 ===== */
+@media (max-width: 768px) and (orientation: landscape) {
+  .login-card {
+    width: 90vw;
+    max-width: 420px;
+    padding: 24px 32px;
+  }
+  .call-controls {
+    padding: 16px 16px 24px;
+  }
+  .local-video { width: 110px; height: 80px; }
 }
