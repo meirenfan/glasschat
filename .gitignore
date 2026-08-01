@@ -21,3 +21,6 @@ Thumbs.db
 .uploads/
 *.zip
 public/uploads/
+
+# user data (runtime generated)
+data/

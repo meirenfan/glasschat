@@ -2,6 +2,8 @@
 let ws = null;
 let myId = null;
 let myName = '';
+let myRole = '';
+let authToken = localStorage.getItem('authToken') || null;
 let selectedContact = null;
 let onlineUsers = [];
 let conversations = {}; // { userId: [messages] }
@@ -21,7 +23,7 @@ let pendingCallType = null;
 let isMuted = false;
 let isVideoOff = false;
 
-// WebRTC 配置 - 使用公共 STUN 服务器
+// WebRTC 配置
 const rtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -31,6 +33,252 @@ const rtcConfig = {
 
 // ===== DOM 引用 =====
 const $ = (id) => document.getElementById(id);
+
+// ===== API 请求工具 =====
+async function api(path, method = 'GET', body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch(`/api/${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : null
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '请求失败');
+  return data;
+}
+
+// ===== 认证功能 =====
+
+// 页面加载时检查登录状态
+async function checkSession() {
+  if (!authToken) {
+    showLoginScreen();
+    return;
+  }
+  try {
+    const data = await api('me');
+    myName = data.username;
+    myRole = data.role;
+    enterChat();
+  } catch (err) {
+    // token 过期或无效
+    localStorage.removeItem('authToken');
+    authToken = null;
+    showLoginScreen();
+  }
+}
+
+// 显示登录界面
+function showLoginScreen() {
+  $('loginScreen').classList.remove('hidden');
+  $('chatScreen').classList.add('hidden');
+  $('adminScreen').classList.add('hidden');
+  showLoginForm();
+}
+
+// 显示聊天界面
+function enterChat() {
+  $('loginScreen').classList.add('hidden');
+  $('adminScreen').classList.add('hidden');
+  $('chatScreen').classList.remove('hidden');
+  // 管理员显示管理按钮
+  $('adminPanelBtn').style.display = myRole === 'admin' ? 'flex' : 'none';
+  // 连接 WebSocket
+  connectWebSocket();
+  resetChatSelection();
+}
+
+// 切换到登录表单
+function showLoginForm() {
+  $('loginForm').classList.remove('hidden');
+  $('registerForm').classList.add('hidden');
+}
+
+// 切换到注册表单
+function showRegisterForm() {
+  $('loginForm').classList.add('hidden');
+  $('registerForm').classList.remove('hidden');
+}
+
+// 登录
+async function handleLogin() {
+  const username = $('loginUsername').value.trim();
+  const password = $('loginPassword').value;
+
+  if (!username || !password) {
+    showToast('请输入用户名和密码');
+    return;
+  }
+
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = '登录中...';
+
+  try {
+    const data = await api('login', 'POST', { username, password });
+    authToken = data.token;
+    localStorage.setItem('authToken', authToken);
+    myName = data.user.username;
+    myRole = data.user.role;
+    showToast('登录成功');
+    enterChat();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = '登录';
+  }
+}
+
+// 注册
+async function handleRegister() {
+  const username = $('registerUsername').value.trim();
+  const password = $('registerPassword').value;
+  const confirm = $('registerPasswordConfirm').value;
+
+  if (!username || !password) {
+    showToast('请输入用户名和密码');
+    return;
+  }
+  if (password.length < 6) {
+    showToast('密码至少6位');
+    return;
+  }
+  if (password !== confirm) {
+    showToast('两次密码不一致');
+    return;
+  }
+
+  $('registerBtn').disabled = true;
+  $('registerBtn').textContent = '注册中...';
+
+  try {
+    await api('register', 'POST', { username, password });
+    showToast('注册成功，请等待管理员审核');
+    // 清空注册表单，切回登录
+    $('registerUsername').value = '';
+    $('registerPassword').value = '';
+    $('registerPasswordConfirm').value = '';
+    $('loginUsername').value = username;
+    showLoginForm();
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    $('registerBtn').disabled = false;
+    $('registerBtn').textContent = '注册';
+  }
+}
+
+// 退出登录
+async function handleLogout() {
+  try {
+    await api('logout', 'POST');
+  } catch {}
+  localStorage.removeItem('authToken');
+  authToken = null;
+  myName = '';
+  myRole = '';
+  if (ws) { ws.close(); ws = null; }
+  // 清空状态
+  selectedContact = null;
+  onlineUsers = [];
+  conversations = {};
+  showLoginScreen();
+}
+
+// ===== 管理员面板 =====
+
+function showAdminPanel() {
+  $('chatScreen').classList.add('hidden');
+  $('adminScreen').classList.remove('hidden');
+  loadPendingUsers();
+  loadAllUsers();
+}
+
+// 加载待审核用户
+async function loadPendingUsers() {
+  try {
+    const data = await api('pending-users');
+    const list = $('pendingUsersList');
+    if (data.users.length === 0) {
+      list.innerHTML = '<div class="admin-empty">暂无待审核用户</div>';
+      return;
+    }
+    list.innerHTML = data.users.map(user => `
+      <div class="admin-user-item">
+        <div class="admin-user-info">
+          <div class="admin-user-name">${escapeHtml(user.username)}</div>
+          <div class="admin-user-meta">注册于 ${new Date(user.createdAt).toLocaleString('zh-CN')}</div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn admin-btn-approve" onclick="approveUser(${user.id})">通过</button>
+          <button class="admin-btn admin-btn-reject" onclick="rejectUser(${user.id})">拒绝</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast('加载失败: ' + err.message);
+  }
+}
+
+// 加载所有用户
+async function loadAllUsers() {
+  try {
+    const data = await api('all-users');
+    const list = $('allUsersList');
+    if (data.users.length === 0) {
+      list.innerHTML = '<div class="admin-empty">暂无用户</div>';
+      return;
+    }
+    const statusMap = {
+      'approved': '已通过',
+      'pending': '待审核',
+      'rejected': '已拒绝'
+    };
+    list.innerHTML = data.users.map(user => `
+      <div class="admin-user-item">
+        <div class="admin-user-info">
+          <div class="admin-user-name">${escapeHtml(user.username)}</div>
+          <div class="admin-user-meta">注册于 ${new Date(user.createdAt).toLocaleString('zh-CN')}</div>
+        </div>
+        <div class="admin-actions">
+          ${user.role === 'admin'
+            ? '<span class="admin-user-status admin">管理员</span>'
+            : `<span class="admin-user-status ${user.status}">${statusMap[user.status] || user.status}</span>
+               ${user.status !== 'approved' ? `<button class="admin-btn admin-btn-approve" onclick="approveUser(${user.id})">通过</button>` : ''}
+               ${user.status === 'approved' ? `<button class="admin-btn admin-btn-reject" onclick="rejectUser(${user.id})">禁用</button>` : ''}`
+          }
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast('加载失败: ' + err.message);
+  }
+}
+
+// 审核通过用户
+async function approveUser(userId) {
+  try {
+    await api('approve-user', 'POST', { userId });
+    showToast('审核已通过');
+    loadPendingUsers();
+    loadAllUsers();
+  } catch (err) {
+    showToast('操作失败: ' + err.message);
+  }
+}
+
+// 拒绝用户
+async function rejectUser(userId) {
+  try {
+    await api('reject-user', 'POST', { userId });
+    showToast('已拒绝该用户');
+    loadPendingUsers();
+    loadAllUsers();
+  } catch (err) {
+    showToast('操作失败: ' + err.message);
+  }
+}
 
 // ===== 工具函数 =====
 function showToast(msg, duration = 2500) {
@@ -74,7 +322,7 @@ function getInitial(name) {
 // ===== WebSocket 连接 =====
 async function connectWebSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+  ws = new WebSocket(`${protocol}//${location.host}/ws?token=${authToken}`);
 
   ws.onopen = async () => {
     console.log('WebSocket 已连接');
@@ -89,8 +337,12 @@ async function connectWebSocket() {
   };
 
   ws.onclose = () => {
-    console.log('WebSocket 断开，3秒后重连...');
-    setTimeout(connectWebSocket, 3000);
+    console.log('WebSocket 断开');
+    // 仅在已认证时自动重连
+    if (authToken) {
+      console.log('3秒后重连...');
+      setTimeout(connectWebSocket, 3000);
+    }
   };
 
   ws.onerror = (err) => console.error('WebSocket 错误:', err);
@@ -783,23 +1035,29 @@ function toggleVideo() {
 
 // ===== 事件绑定 =====
 function bindEvents() {
-  // 登录
-  $('joinBtn').addEventListener('click', () => {
-    const name = $('nameInput').value.trim();
-    if (!name) {
-      showToast('请输入昵称');
-      return;
-    }
-    myName = name;
-    $('loginScreen').classList.add('hidden');
-    $('chatScreen').classList.remove('hidden');
-    connectWebSocket();
+  // ===== 登录/注册 =====
+  $('loginBtn').addEventListener('click', handleLogin);
+  $('loginPassword').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleLogin();
   });
 
-  $('nameInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('joinBtn').click();
+  $('registerBtn').addEventListener('click', handleRegister);
+  $('registerPasswordConfirm').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleRegister();
   });
 
+  $('switchToRegisterBtn').addEventListener('click', showRegisterForm);
+  $('switchToLoginBtn').addEventListener('click', showLoginForm);
+
+  // ===== 管理员面板 =====
+  $('adminPanelBtn').addEventListener('click', showAdminPanel);
+  $('adminEnterChatBtn').addEventListener('click', enterChat);
+  $('adminLogoutBtn').addEventListener('click', handleLogout);
+
+  // ===== 退出登录 =====
+  $('logoutBtn').addEventListener('click', handleLogout);
+
+  // ===== 聊天功能 =====
   // 搜索
   $('searchInput').addEventListener('input', renderContacts);
 
@@ -868,4 +1126,4 @@ function bindEvents() {
 
 // ===== 初始化 =====
 bindEvents();
-$('nameInput').focus();
+checkSession();

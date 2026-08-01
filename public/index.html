@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>GlassChat — 面对面聊天</title>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
 </head>
 <body>
 
@@ -17,7 +16,7 @@
     <div class="orb orb-4"></div>
   </div>
 
-  <!-- 登录界面 -->
+  <!-- 登录/注册界面 -->
   <div id="loginScreen" class="screen login-screen">
     <div class="glass-card login-card">
       <div class="login-logo">
@@ -34,11 +33,51 @@
         </svg>
       </div>
       <h1 class="login-title">GlassChat</h1>
-      <p class="login-subtitle">面对面聊天 · 晶莹通透</p>
-      <div class="login-form">
-        <input type="text" id="nameInput" class="glass-input" placeholder="输入你的昵称" maxlength="20" autocomplete="off">
-        <button id="joinBtn" class="glass-btn-primary">进入聊天</button>
+      <p class="login-subtitle">面对面聊天 · 端到端加密</p>
+
+      <!-- 登录表单 -->
+      <div id="loginForm" class="login-form">
+        <input type="text" id="loginUsername" class="glass-input" placeholder="用户名" maxlength="20" autocomplete="off">
+        <input type="password" id="loginPassword" class="glass-input" placeholder="密码" maxlength="50" autocomplete="off">
+        <button id="loginBtn" class="glass-btn-primary">登录</button>
+        <button id="switchToRegisterBtn" class="glass-btn-link">没有账号？去注册</button>
       </div>
+
+      <!-- 注册表单 -->
+      <div id="registerForm" class="login-form hidden">
+        <input type="text" id="registerUsername" class="glass-input" placeholder="设置用户名" maxlength="20" autocomplete="off">
+        <input type="password" id="registerPassword" class="glass-input" placeholder="设置密码（至少6位）" maxlength="50" autocomplete="off">
+        <input type="password" id="registerPasswordConfirm" class="glass-input" placeholder="确认密码" maxlength="50" autocomplete="off">
+        <button id="registerBtn" class="glass-btn-primary">注册</button>
+        <button id="switchToLoginBtn" class="glass-btn-link">已有账号？去登录</button>
+        <p class="register-hint">注册后需管理员审核通过才能登录</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员面板 -->
+  <div id="adminScreen" class="screen hidden">
+    <div class="glass-card admin-card">
+      <div class="admin-header">
+        <h2 class="admin-title">管理员面板</h2>
+        <button id="adminEnterChatBtn" class="glass-btn-primary">进入聊天</button>
+      </div>
+
+      <div class="admin-section">
+        <h3 class="admin-section-title">待审核用户</h3>
+        <div id="pendingUsersList" class="admin-list">
+          <div class="admin-empty">暂无待审核用户</div>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3 class="admin-section-title">所有用户</h3>
+        <div id="allUsersList" class="admin-list">
+          <div class="admin-empty">加载中...</div>
+        </div>
+      </div>
+
+      <button id="adminLogoutBtn" class="glass-btn-link">退出登录</button>
     </div>
   </div>
 
@@ -54,6 +93,19 @@
             <span class="my-name" id="myName">用户</span>
             <span class="my-status">在线</span>
           </div>
+          <button class="icon-btn admin-btn" id="adminPanelBtn" title="管理面板" style="display:none;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="logoutBtn" title="退出登录">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
         </div>
       </div>
       <div class="sidebar-search">
@@ -137,19 +189,16 @@
   <!-- 通话界面 -->
   <div id="callScreen" class="call-overlay hidden">
     <div class="call-container glass-card-dark">
-      <!-- 视频区域 -->
       <div class="call-videos">
         <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
         <video id="localVideo" class="local-video" autoplay playsinline muted></video>
       </div>
-      <!-- 语音通话占位 -->
       <div id="audioCallView" class="audio-call-view hidden">
         <div class="audio-avatar" id="callAvatar">?</div>
         <div class="call-name" id="callName">通话中</div>
         <div class="call-timer" id="callTimer">00:00</div>
         <div class="call-status-text" id="callStatusText">正在连接...</div>
       </div>
-      <!-- 通话控制 -->
       <div class="call-controls">
         <button class="call-control-btn" id="muteBtn" title="静音">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
