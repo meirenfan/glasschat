@@ -2179,6 +2179,131 @@ function generateChannelInviteLink() {
   });
 }
 
+// ====================== 文件传输 ======================
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+// 上传文件（带进度）
+async function uploadTransferFile(file) {
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const xhr = new XMLHttpRequest();
+  $('uploadProgress').classList.remove('hidden');
+  $('uploadResult').classList.add('hidden');
+  $('progressFill').style.width = '0%';
+  $('progressText').textContent = '上传中... 0%';
+
+  xhr.upload.addEventListener('progress', (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      $('progressFill').style.width = pct + '%';
+      $('progressText').textContent = `上传中... ${pct}%`;
+    }
+  });
+
+  xhr.addEventListener('load', () => {
+    $('uploadProgress').classList.add('hidden');
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (data.success) {
+        $('transferCode').textContent = data.code;
+        $('transferFilename').textContent = data.filename + ' · ' + formatFileSize(data.size);
+        $('uploadResult').classList.remove('hidden');
+        showToast('上传成功，取件码：' + data.code);
+      } else {
+        showToast('上传失败：' + (data.error || '未知错误'));
+      }
+    } catch {
+      showToast('上传失败：服务器返回异常');
+    }
+  });
+
+  xhr.addEventListener('error', () => {
+    $('uploadProgress').classList.add('hidden');
+    showToast('上传失败：网络错误');
+  });
+
+  xhr.open('POST', '/api/transfer/upload');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+  xhr.send(formData);
+}
+
+// 通过取件码查询文件信息
+async function queryTransferCode() {
+  const code = $('downloadCodeInput').value.trim().toUpperCase();
+  if (!code || code.length !== 6) {
+    showToast('请输入6位取件码');
+    return;
+  }
+
+  try {
+    const data = await api(`transfer/info/${code}`);
+    if (data.success) {
+      $('downloadFilename').textContent = data.filename;
+      $('downloadFilesize').textContent = formatFileSize(data.size);
+      $('downloadUploader').textContent = '上传者：' + (data.uploadedByName || '匿名') + ' · 下载次数：' + data.downloads;
+      $('downloadResult').classList.remove('hidden');
+      // 存储当前查询的取件码供下载使用
+      $('downloadFileBtn').dataset.code = code;
+    }
+  } catch (err) {
+    showToast(err.message || '取件码无效');
+    $('downloadResult').classList.add('hidden');
+  }
+}
+
+// 下载文件
+async function downloadTransferFile() {
+  const code = $('downloadFileBtn').dataset.code;
+  if (!code) return;
+
+  try {
+    const response = await fetch('/api/transfer/download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + authToken,
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      showToast(err.error || '下载失败');
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = $('downloadFilename').textContent || 'download';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('下载已开始');
+  } catch (err) {
+    showToast('下载失败：' + err.message);
+  }
+}
+
+// 复制取件码
+function copyTransferCode() {
+  const code = $('transferCode').textContent;
+  navigator.clipboard?.writeText(code).then(() => showToast('取件码已复制')).catch(() => {
+    window.prompt('复制取件码:', code);
+  });
+}
+
 // ====================== 管理员面板 ======================
 
 function showAdminPanel() {
@@ -2909,6 +3034,25 @@ function bindEvents() {
   $('postImageInput').addEventListener('change', onPostImageSelect);
   $('channelInviteBtn').addEventListener('click', generateChannelInviteLink);
   $('channelBackBtn').addEventListener('click', backToChannelList);
+
+  // ===== 文件传输 =====
+  $('uploadZone').addEventListener('click', () => $('transferFileInput').click());
+  $('transferFileInput').addEventListener('change', (e) => {
+    if (e.target.files[0]) uploadTransferFile(e.target.files[0]);
+  });
+  // 拖拽上传
+  const uploadZone = $('uploadZone');
+  uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) uploadTransferFile(e.dataTransfer.files[0]);
+  });
+  $('copyCodeBtn').addEventListener('click', copyTransferCode);
+  $('queryCodeBtn').addEventListener('click', queryTransferCode);
+  $('downloadCodeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') queryTransferCode(); });
+  $('downloadFileBtn').addEventListener('click', downloadTransferFile);
 
   // ===== 设置：主题与颜色 =====
   document.querySelectorAll('.theme-card').forEach(card => {

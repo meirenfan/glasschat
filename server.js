@@ -46,6 +46,7 @@ const usersFile = path.join(dataDir, 'users.json');
 const sessionsFile = path.join(dataDir, 'sessions.json');
 const groupsFile = path.join(dataDir, 'groups.json');
 const channelsFile = path.join(dataDir, 'channels.json');
+const transfersFile = path.join(dataDir, 'transfers.json');
 
 // ============================================================================
 // 二、密码哈希与令牌生成
@@ -1342,6 +1343,147 @@ app.post('/upload', upload.single('file'), (req, res) => {
         ? 'video'
         : 'file';
   res.json({ url: fileUrl, mediaType, size: req.file.size });
+});
+
+// ============================================================================
+// 十八-B、文件传输接口（密码取件）
+// ============================================================================
+
+const transferDir = path.join(dataDir, 'transfer_files');
+if (!fs.existsSync(transferDir)) {
+  fs.mkdirSync(transferDir, { recursive: true });
+}
+
+// 文件传输专用 Multer（无大小限制、无类型限制）
+const transferStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, transferDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    cb(null, crypto.randomBytes(16).toString('hex') + ext);
+  }
+});
+const transferUpload = multer({ storage: transferStorage, limits: { fileSize: Infinity } });
+
+// 生成6位字母+数字混合密码（大写）
+function generateTransferCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code;
+  do {
+    code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars[crypto.randomInt(chars.length)];
+    }
+  } while (loadTransfers().transfers[code]); // 确保不重复
+  return code;
+}
+
+// 加载传输记录
+function loadTransfers() {
+  try {
+    return JSON.parse(fs.readFileSync(transfersFile, 'utf8'));
+  } catch {
+    return { transfers: {} };
+  }
+}
+
+// 保存传输记录
+function saveTransfers(data) {
+  fs.writeFileSync(transfersFile, JSON.stringify(data, null, 2));
+}
+
+/**
+ * POST /api/transfer/upload
+ * 上传文件，生成6位取件码
+ */
+app.post('/api/transfer/upload', authMiddleware, transferUpload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: '未收到文件' });
+  }
+
+  const code = generateTransferCode();
+  const transfersData = loadTransfers();
+
+  transfersData.transfers[code] = {
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    size: req.file.size,
+    mimetype: req.file.mimetype,
+    uploadedBy: req.user.id,
+    uploadedByName: req.user.username,
+    createdAt: Date.now(),
+    downloads: 0
+  };
+
+  saveTransfers(transfersData);
+
+  res.json({
+    success: true,
+    code: code,
+    filename: req.file.originalname,
+    size: req.file.size
+  });
+});
+
+/**
+ * POST /api/transfer/download
+ * 通过取件码下载文件
+ */
+app.post('/api/transfer/download', authMiddleware, (req, res) => {
+  const { code } = req.body;
+  if (!code || code.length !== 6) {
+    return res.status(400).json({ error: '请输入6位取件码' });
+  }
+
+  const transfersData = loadTransfers();
+  const transfer = transfersData.transfers[code.toUpperCase()];
+
+  if (!transfer) {
+    return res.status(404).json({ error: '取件码无效或文件不存在' });
+  }
+
+  const filePath = path.join(transferDir, transfer.filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: '文件已被删除' });
+  }
+
+  // 增加下载计数
+  transfer.downloads = (transfer.downloads || 0) + 1;
+  saveTransfers(transfersData);
+
+  res.download(filePath, transfer.originalName);
+});
+
+/**
+ * GET /api/transfer/info/:code
+ * 通过取件码查询文件信息（不下载）
+ */
+app.get('/api/transfer/info/:code', authMiddleware, (req, res) => {
+  const code = req.params.code;
+  if (!code || code.length !== 6) {
+    return res.status(400).json({ error: '请输入6位取件码' });
+  }
+
+  const transfersData = loadTransfers();
+  const transfer = transfersData.transfers[code.toUpperCase()];
+
+  if (!transfer) {
+    return res.status(404).json({ error: '取件码无效或文件不存在' });
+  }
+
+  const filePath = path.join(transferDir, transfer.filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: '文件已被删除' });
+  }
+
+  res.json({
+    success: true,
+    filename: transfer.originalName,
+    size: transfer.size,
+    mimetype: transfer.mimetype,
+    createdAt: transfer.createdAt,
+    uploadedByName: transfer.uploadedByName,
+    downloads: transfer.downloads || 0
+  });
 });
 
 // ============================================================================
