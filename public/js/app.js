@@ -2260,40 +2260,25 @@ async function queryTransferCode() {
   }
 }
 
-// 下载文件
-async function downloadTransferFile() {
+// 下载文件（直接跳转URL，兼容移动端浏览器原生下载）
+function downloadTransferFile() {
   const code = $('downloadFileBtn').dataset.code;
-  if (!code) return;
-
-  try {
-    const response = await fetch('/api/transfer/download', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + authToken,
-      },
-      body: JSON.stringify({ code }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      showToast(err.error || '下载失败');
-      return;
-    }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = $('downloadFilename').textContent || 'download';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('下载已开始');
-  } catch (err) {
-    showToast('下载失败：' + err.message);
+  if (!code) {
+    showToast('请先查询取件码');
+    return;
   }
+
+  // 直接通过浏览器跳转下载，避免 fetch+blob 在移动端的限制
+  const downloadUrl = `/api/transfer/download?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`;
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = $('downloadFilename').textContent || 'download';
+  // 加 target=_blank 避免部分浏览器跳转后无法返回
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('下载已开始');
 }
 
 // 复制取件码

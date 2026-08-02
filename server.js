@@ -1425,11 +1425,22 @@ app.post('/api/transfer/upload', authMiddleware, transferUpload.single('file'), 
 });
 
 /**
- * POST /api/transfer/download
- * 通过取件码下载文件
+ * GET /api/transfer/download
+ * 通过取件码下载文件（GET方式，支持浏览器直接跳转下载）
+ * token 通过 query 参数传递，兼容移动端浏览器
  */
-app.post('/api/transfer/download', authMiddleware, (req, res) => {
-  const { code } = req.body;
+app.get('/api/transfer/download', (req, res) => {
+  const code = req.query.code;
+  const token = req.query.token;
+
+  // 验证 token
+  if (!token) return res.status(401).json({ error: '未登录' });
+  const sessionsData = loadSessions();
+  const session = sessionsData[token];
+  if (!session || session.expires < Date.now()) {
+    return res.status(401).json({ error: '登录已过期' });
+  }
+
   if (!code || code.length !== 6) {
     return res.status(400).json({ error: '请输入6位取件码' });
   }
@@ -1450,7 +1461,11 @@ app.post('/api/transfer/download', authMiddleware, (req, res) => {
   transfer.downloads = (transfer.downloads || 0) + 1;
   saveTransfers(transfersData);
 
-  res.download(filePath, transfer.originalName);
+  // 强制下载，避免浏览器内联显示（APK、视频、文本等）
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(transfer.originalName)}"`);
+  res.setHeader('Content-Length', transfer.size);
+  res.sendFile(path.resolve(filePath));
 });
 
 /**
