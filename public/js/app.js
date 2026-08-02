@@ -28,8 +28,35 @@ const rtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
   ]
 };
+
+// 1080p 高清视频约束
+const videoConstraints1080p = {
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+  frameRate: { ideal: 30, max: 60 },
+  aspectRatio: 1.777777778,
+  facingMode: 'user'
+};
+
+// RTC 编码器配置 - 1080p 高清
+const rtcEncodingConfig = {
+  x: {
+    maxBitrate: 4_000_000,       // 4 Mbps
+    maxFramerate: 30,
+    scaleResolutionDownBy: 1,    // 不缩放，保持原始分辨率
+  }
+};
+
+// 接收偏好 - 优先高清
+const rtcReceiverPrefs = [
+  { kind: 'video', preference: 'high' },
+  { kind: 'audio', preference: 'high' },
+];
 
 // ===== DOM 引用 =====
 const $ = (id) => document.getElementById(id);
@@ -721,10 +748,14 @@ async function startCall(type) {
   isCallInitiator = true;
 
   try {
-    // 获取本地媒体流
+    // 获取本地媒体流 - 1080p 高清
     localStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: type === 'video'
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: type === 'video' ? videoConstraints1080p : false
     });
 
     // 创建 PeerConnection
@@ -792,8 +823,12 @@ async function acceptCall() {
 
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: pendingCallType === 'video'
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: pendingCallType === 'video' ? videoConstraints1080p : false
     });
 
     createPeerConnection();
@@ -844,8 +879,12 @@ async function handleWebRTCOffer(msg) {
     if (!localStream) {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: pendingCallType === 'video'
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: pendingCallType === 'video' ? videoConstraints1080p : false
         });
         createPeerConnection();
         localStream.getTracks().forEach(track => {
@@ -912,6 +951,18 @@ async function handleICECandidate(msg) {
 function createPeerConnection() {
   peerConnection = new RTCPeerConnection(rtcConfig);
 
+  // 设置接收偏好 - 优先高清
+  if (RTCReceiver && rtcReceiverPrefs) {
+    try {
+      for (const pref of rtcReceiverPrefs) {
+        const receiver = peerConnection.addTransceiver(pref.kind);
+        receiver.setCodecPreferences && receiver.setCodecPreferences([]);
+      }
+    } catch (e) {
+      console.log('接收器偏好设置跳过:', e);
+    }
+  }
+
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
       sendWS({
@@ -926,6 +977,10 @@ function createPeerConnection() {
     remoteStream = event.streams[0];
     const remoteVideo = $('remoteVideo');
     remoteVideo.srcObject = remoteStream;
+    // 强制高清播放
+    remoteVideo.style.width = '100%';
+    remoteVideo.style.height = '100%';
+    remoteVideo.style.objectFit = 'cover';
   };
 
   peerConnection.onconnectionstatechange = () => {
@@ -934,11 +989,48 @@ function createPeerConnection() {
     if (state === 'connected') {
       $('callStatusText').textContent = '已连接';
       if (!callTimerInterval) startCallTimer();
+      // 连接建立后提升编码器码率
+      applyHighQualityEncoding();
     } else if (state === 'disconnected' || state === 'failed') {
       showToast('通话连接中断');
       endCall();
     }
   };
+}
+
+// 连接建立后提升编码器参数到 1080p
+function applyHighQualityEncoding() {
+  if (!peerConnection) return;
+
+  const senders = peerConnection.getSenders();
+  for (const sender of senders) {
+    if (sender.track && sender.track.kind === 'video') {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      // 设置 1080p 高清编码参数
+      params.encodings[0].maxBitrate = 4_000_000;        // 4 Mbps
+      params.encodings[0].maxFramerate = 30;
+      params.encodings[0].scaleResolutionDownBy = 1;     // 不缩放
+      // 优先级设为高
+      params.priority = 'high';
+      params.degradationPreference = 'maintain-resolution'; // 网络差时优先保持分辨率
+      sender.setParameters(params).catch(e => {
+        console.log('设置编码参数失败:', e);
+      });
+      console.log('已应用 1080p 高清编码参数');
+    }
+    if (sender.track && sender.track.kind === 'audio') {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      params.encodings[0].maxBitrate = 128_000; // 128 kbps 音频
+      params.priority = 'high';
+      sender.setParameters(params).catch(() => {});
+    }
+  }
 }
 
 function showCallScreen(type, name, isInitiator) {

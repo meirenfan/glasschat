@@ -589,6 +589,10 @@ body {
   height: 100%;
   object-fit: cover;
   background: #000;
+  /* 确保高清渲染 */
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .remote-video.hidden { display: none; }
