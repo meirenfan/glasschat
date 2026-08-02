@@ -549,18 +549,71 @@
       .tab-content { bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
       /* 通讯录/社区/设置页内边距适配 */
       .contacts-body, .settings-body, .posts-container { padding: 14px 14px 24px; }
-      .transfer-body { padding: 14px 14px 24px; }
-      .result-code { font-size: 26px; letter-spacing: 4px; }
+      .page-header { padding: 12px 16px; }
+      .theme-cards { flex-direction: column; }
+
+      /* ===== 移动端文件传输页适配 ===== */
+      .transfer-body {
+        padding: 12px 14px calc(20px + 56px + env(safe-area-inset-bottom, 0px));
+        gap: 16px;
+      }
+      .transfer-section h3 { font-size: 14px; margin-bottom: 8px; }
+      .transfer-upload-zone {
+        padding: 28px 14px;
+        border-width: 1.5px;
+      }
+      .transfer-upload-zone svg { width: 36px; height: 36px; }
+      .upload-hint { font-size: 14px; margin-top: 8px; }
+      .upload-sub-hint { font-size: 11px; }
+      .transfer-download-zone { padding: 18px 14px; }
+      .download-hint { font-size: 13px; margin-bottom: 10px; }
+      .download-input-row { flex-direction: row; gap: 8px; }
+      .transfer-code-input {
+        font-size: 18px;
+        letter-spacing: 2px;
+        padding: 12px 10px;
+        min-width: 0;
+      }
+      .download-input-row .glass-btn-primary {
+        padding: 12px 18px;
+        font-size: 14px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .result-card {
+        padding: 14px;
+        gap: 12px;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .result-icon { width: 32px; height: 32px; font-size: 16px; }
+      .result-file-icon { width: 40px; height: 40px; }
+      .result-file-icon svg { width: 28px; height: 28px; }
+      .result-code {
+        font-size: 24px;
+        letter-spacing: 3px;
+      }
+      .result-filename { font-size: 13px; }
+      .result-filesize { font-size: 12px; }
+      .result-uploader { font-size: 11px; }
+      .result-info .glass-btn-primary {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        margin-top: 8px !important;
+      }
+      .progress-bar { height: 6px; }
+      #progressText { font-size: 11px; }
+      .transfer-page { height: 100%; }
+
+      /* ===== 移动端社区 ===== */
       .community-sidebar { width: 100%; min-width: 0; }
-      /* 移动端社区：频道列表与频道详情切换显示 */
       .community-page { flex-direction: column; position: relative; overflow: hidden; }
       .community-sidebar { flex: 1; height: 100%; }
       .channel-detail { display: none; flex: 1; height: 100%; }
       .community-page.show-detail .community-sidebar { display: none; }
       .community-page.show-detail .channel-detail { display: flex; flex-direction: column; }
       .channel-back-btn { display: inline-flex; }
-      .page-header { padding: 12px 16px; }
-      .theme-cards { flex-direction: column; }
     }
   </style>
 </head>
