@@ -543,7 +543,10 @@ function switchTab(tabName) {
     loadFriends();
   } else if (tabName === 'community') {
     loadChannels();
-    if (selectedChannel) renderChannelDetail();
+    if (selectedChannel) {
+      document.querySelector('.community-page')?.classList.add('show-detail');
+      renderChannelDetail();
+    }
   } else if (tabName === 'settings') {
     syncThemeUI();
     syncColorUI();
@@ -2022,8 +2025,15 @@ async function selectChannel(channelId) {
   $('postImageBtn').disabled = false;
   $('postSendBtn').disabled = false;
   $('channelInviteBtn').disabled = false;
+  // 移动端：切换到频道详情视图
+  document.querySelector('.community-page')?.classList.add('show-detail');
   renderChannels();
   renderChannelDetail();
+}
+
+// 返回频道列表（移动端）
+function backToChannelList() {
+  document.querySelector('.community-page')?.classList.remove('show-detail');
 }
 
 let pendingPostImages = []; // 待发布图片（base64/dataURL）
@@ -2870,6 +2880,7 @@ function bindEvents() {
   $('postImageBtn').addEventListener('click', () => $('postImageInput').click());
   $('postImageInput').addEventListener('change', onPostImageSelect);
   $('channelInviteBtn').addEventListener('click', generateChannelInviteLink);
+  $('channelBackBtn').addEventListener('click', backToChannelList);
 
   // ===== 设置：主题与颜色 =====
   document.querySelectorAll('.theme-card').forEach(card => {

@@ -352,6 +352,7 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .channel-detail { min-width: 0; }
+    .channel-back-btn { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(0,0,0,0.05); cursor: pointer; color: var(--text-primary); flex-shrink: 0; }
     .posts-container { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
     .post-card {
       background: rgba(255,255,255,0.45); border: 1px solid var(--glass-border);
@@ -507,7 +508,13 @@
       /* 通讯录/社区/设置页内边距适配 */
       .contacts-body, .settings-body, .posts-container { padding: 14px 14px 24px; }
       .community-sidebar { width: 100%; min-width: 0; }
-      /* 移动端社区默认只显示频道列表，选中后显示详情（简化为并排可滚动）*/
+      /* 移动端社区：频道列表与频道详情切换显示 */
+      .community-page { flex-direction: column; position: relative; overflow: hidden; }
+      .community-sidebar { flex: 1; height: 100%; }
+      .channel-detail { display: none; flex: 1; height: 100%; }
+      .community-page.show-detail .community-sidebar { display: none; }
+      .community-page.show-detail .channel-detail { display: flex; flex-direction: column; }
+      .channel-back-btn { display: inline-flex; }
       .page-header { padding: 12px 16px; }
       .theme-cards { flex-direction: column; }
     }
@@ -735,6 +742,9 @@
           </aside>
           <main class="channel-detail">
             <header class="page-header glass-panel" id="channelHeader">
+              <button class="channel-back-btn" id="channelBackBtn" title="返回频道列表">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
               <div>
                 <div class="chat-partner-name" id="channelTitle">选择一个频道</div>
                 <div class="chat-partner-status" id="channelMeta">查看与发布动态</div>
