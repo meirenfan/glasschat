@@ -505,6 +505,34 @@ async function saveCustomColors() {
   showToast('自定义颜色已保存');
 }
 
+// 各主题默认色值
+const themeDefaultColors = {
+  green:  { bubble: '#E6F4EA', sidebar: '#D4EDDA', button: '#74C69D' },
+  white:  { bubble: '#F8F9FA', sidebar: '#F8F9FA', button: '#007AFF' },
+  dark:   { bubble: '#1E2128', sidebar: '#1E2128', button: '#0A84FF' },
+};
+
+// 重置为当前主题的默认配色
+async function resetCustomColors() {
+  const defaults = themeDefaultColors[currentTheme] || themeDefaultColors.green;
+  customColors = { bubble: '', sidebar: '', button: '' };
+  // 清除 :root 上的自定义变量，回退到主题默认
+  const root = document.documentElement;
+  root.style.setProperty('--custom-bubble', '');
+  root.style.setProperty('--custom-sidebar', '');
+  root.style.setProperty('--custom-button', '');
+  localStorage.removeItem('gc_custom_colors');
+  // 同步颜色选择器 UI 为默认值
+  $('colorBubble').value = defaults.bubble;
+  $('colorBubbleHex').value = defaults.bubble;
+  $('colorSidebar').value = defaults.sidebar;
+  $('colorSidebarHex').value = defaults.sidebar;
+  $('colorButton').value = defaults.button;
+  $('colorButtonHex').value = defaults.button;
+  await saveSettings();
+  showToast('已重置为默认配色');
+}
+
 // 保存用户设置到后端（容错：接口缺失则仅本地保存）
 async function saveSettings() {
   try {
@@ -2892,6 +2920,7 @@ function bindEvents() {
   bindColorPicker('colorSidebar', 'colorSidebarHex', 'sidebar');
   bindColorPicker('colorButton', 'colorButtonHex', 'button');
   $('saveColorsBtn').addEventListener('click', saveCustomColors);
+  $('resetColorsBtn').addEventListener('click', resetCustomColors);
 
   // ===== 消息上下文菜单 =====
   $('messageContextMenu').querySelectorAll('button').forEach(btn => {

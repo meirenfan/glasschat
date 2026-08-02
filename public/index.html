@@ -809,7 +809,10 @@
                 <div class="preview-sidebar">预览侧边栏</div>
                 <button class="preview-button">预览按钮</button>
               </div>
-              <button class="glass-btn-primary" id="saveColorsBtn" style="margin-top:14px;width:100%;">保存自定义颜色</button>
+              <div style="display:flex;gap:10px;margin-top:14px;">
+                <button class="glass-btn-primary" id="saveColorsBtn" style="flex:1;">保存自定义颜色</button>
+                <button class="glass-btn-link" id="resetColorsBtn" style="flex:1;border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:14px 16px;font-size:15px;font-weight:600;color:var(--text-primary);background:var(--glass-bg);backdrop-filter:blur(10px);">重置默认配色</button>
+              </div>
             </section>
             <!-- 账户信息 -->
             <section class="settings-section">
