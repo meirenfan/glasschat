@@ -340,25 +340,49 @@ async function loadCloudMessageHistory() {
 
 /** 导出用户数据 */
 async function exportUserData() {
+  var btn = $('exportDataBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '正在导出...'; }
   try {
     showToast('正在导出数据...');
-    const res = await fetch(absUrl('/api/export-data'), {
-      headers: { 'Authorization': `Bearer ${authToken}` }
+    var res = await fetch(absUrl('/api/export-data'), {
+      headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('导出失败');
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var filename = 'glasschat-backup-' + myName + '-' + Date.now() + '.json';
+
+    // 尝试方法1: 创建 <a> 标签下载
+    var a = document.createElement('a');
     a.href = url;
-    a.download = `glasschat-backup-${myName}-${Date.now()}.json`;
+    a.download = filename;
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 2000);
+
+    // 方法2: 如果在 Capacitor 中，用 Browser 插件打开数据URL
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+        var reader = new FileReader();
+        reader.onload = function() {
+          var dataUrl = reader.result;
+          if (dataUrl.length < 2000000) { // 2MB 以下才用 data URL
+            window.Capacitor.Plugins.Browser.open({ url: dataUrl }).catch(function(){});
+          }
+        };
+        reader.readAsDataURL(blob);
+      }
+    } catch (e) {}
+
     showToast('数据导出成功');
   } catch (err) {
     showToast('导出失败: ' + err.message);
   }
+  if (btn) { btn.disabled = false; btn.textContent = '导出我的数据'; }
 }
 
 /** 导入用户数据 */
@@ -639,8 +663,8 @@ function handleClearChat() {
 }
 
 // ====================== 检查更新 ======================
-const APP_VERSION = '1.2';
-const APP_VERSION_CODE = 3;
+const APP_VERSION = '1.3';
+const APP_VERSION_CODE = 4;
 
 /**
  * 下载更新 —— 多重回退策略，确保在 Capacitor WebView 中也能打开下载链接
@@ -3329,8 +3353,10 @@ function bindEvents() {
 
   // ===== 检查更新 =====
   $('checkUpdateBtn').addEventListener('click', checkForUpdates);
-  // 显示服务器地址
+  // 显示服务器地址和当前版本
   $('serverUrlDisplay').textContent = SERVER_URL.replace(/^https?:\/\//, '');
+  var versionEl = $('appVersionDisplay');
+  if (versionEl) versionEl.textContent = APP_VERSION;
 
   // ===== 管理员面板 =====
   $('adminEnterChatBtn').addEventListener('click', enterChat);

@@ -366,11 +366,11 @@ app.get('/download/:version/GlassChat.apk', (req, res) => {
 // APK 版本信息（供 APP 内置更新检查使用）
 app.get('/api/version', (req, res) => {
   res.json({
-    version: '1.2',
-    versionCode: 3,
-    apkUrl: '/download/v3/GlassChat.apk',
-    downloadUrl: '/download/v3/GlassChat.apk',
-    updateInfo: 'v1.2: 修复更新下载按钮无法点击的问题，优化下载流程'
+    version: '1.3',
+    versionCode: 4,
+    apkUrl: '/download/v4/GlassChat.apk',
+    downloadUrl: '/download/v4/GlassChat.apk',
+    updateInfo: 'v1.3: 修复版本号显示错误，优化按钮可点击性，修复导出功能'
   });
 });
 
