@@ -3269,6 +3269,30 @@ function init() {
   bindEvents();
   loadTheme();      // 先应用本地主题，避免登录页闪烁
   checkSession();
+  registerServiceWorker(); // 注册 PWA Service Worker
+}
+
+// ====================== PWA Service Worker ======================
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => {
+        console.log('Service Worker 已注册', reg.scope);
+        // 检测到新版本时自动更新
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                // 新版本已激活，提示用户刷新
+                showToast('应用已更新，刷新以加载最新版本');
+              }
+            });
+          }
+        });
+      })
+      .catch((err) => console.error('Service Worker 注册失败:', err));
+  }
 }
 
 init();
