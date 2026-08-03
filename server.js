@@ -341,11 +341,25 @@ app.use((req, res, next) => {
 // 静态文件服务（前端页面）—— dotfiles: 'allow' 确保 .well-known 目录可访问
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
-// APK 下载直链
+// APK 下载直链 —— 添加防缓存头，确保每次下载最新版本
 app.get('/GlassChat.apk', (req, res) => {
   const apkPath = path.join(__dirname, 'public', 'GlassChat.apk');
   res.setHeader('Content-Type', 'application/vnd.android.package-archive');
   res.setHeader('Content-Disposition', 'attachment; filename="GlassChat.apk"');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(apkPath);
+});
+
+// 带版本号的 APK 下载链接（防缓存）—— /download/v3/GlassChat.apk
+app.get('/download/:version/GlassChat.apk', (req, res) => {
+  const apkPath = path.join(__dirname, 'public', 'GlassChat.apk');
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="GlassChat.apk"');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(apkPath);
 });
 
@@ -354,8 +368,8 @@ app.get('/api/version', (req, res) => {
   res.json({
     version: '1.2',
     versionCode: 3,
-    apkUrl: '/GlassChat.apk',
-    downloadUrl: '/GlassChat.apk',
+    apkUrl: '/download/v3/GlassChat.apk',
+    downloadUrl: '/download/v3/GlassChat.apk',
     updateInfo: 'v1.2: 修复更新下载按钮无法点击的问题，优化下载流程'
   });
 });
