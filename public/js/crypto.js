@@ -1,3 +1,15 @@
+// ===== 全局服务器地址配置 =====
+// Capacitor APK 运行在 localhost，必须使用绝对地址才能连接远程后端
+const SERVER_URL = 'https://glasschat-production.up.railway.app';
+
+/** 将相对 URL 转为绝对 URL（Capacitor 环境必须） */
+function absUrl(u) {
+  if (!u) return u;
+  if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('wss://') || u.startsWith('ws://')) return u;
+  if (u.startsWith('/')) return SERVER_URL + u;
+  return SERVER_URL + '/' + u;
+}
+
 // ===== 端到端加密模块 =====
 // 使用 ECDH (P-256) 密钥交换 + AES-GCM 加密
 // 密钥对持久化到 localStorage，跨会话复用同一密钥对，
@@ -275,7 +287,7 @@ async function decryptFile(encryptedArrayBuffer, userId) {
 // ===== 获取已加密的文件 URL =====
 // 加密文件通过 blob URL 在本地解密后展示
 async function fetchAndDecryptFile(url, userId) {
-  const response = await fetch(url);
+  const response = await fetch(absUrl(url));
   const encryptedBuffer = await response.arrayBuffer();
   const decryptedBuffer = await decryptFile(encryptedBuffer, userId);
   return URL.createObjectURL(new Blob([decryptedBuffer]));

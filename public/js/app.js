@@ -110,7 +110,7 @@ const $ = (id) => document.getElementById(id);
 async function api(path, method = 'GET', body = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-  const res = await fetch(`/api/${path}`, {
+  const res = await fetch(absUrl(`/api/${path}`), {
     method,
     headers,
     body: body ? JSON.stringify(body) : null
@@ -553,7 +553,7 @@ async function checkForUpdates() {
   result.textContent = '正在连接服务器检查版本...';
 
   try {
-    const url = (typeof SERVER_URL !== 'undefined' ? SERVER_URL : '') + '/api/version';
+    const url = absUrl('/api/version');
     const res = await fetch(url);
     if (!res.ok) throw new Error('服务器响应异常');
     const data = await res.json();
@@ -565,7 +565,7 @@ async function checkForUpdates() {
       result.style.background = 'rgba(255,159,10,0.15)';
       result.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">发现新版本 v${serverVersion}</div>` +
         `<div style="margin-bottom:10px;">${data.updateInfo || '有新版本可用'}</div>` +
-        `<a href="${(typeof SERVER_URL !== 'undefined' ? SERVER_URL : '') + data.downloadUrl}" ` +
+        `<a href="${absUrl(data.downloadUrl)}" ` +
         `style="display:inline-block;padding:10px 20px;background:var(--btn-highlight);color:#fff;` +
         `border-radius:12px;text-decoration:none;font-weight:600;">立即下载更新</a>`;
     } else {
@@ -761,9 +761,9 @@ function switchTab(tabName) {
 
 // ====================== WebSocket 连接（增强）======================
 async function connectWebSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // 在 URL 中携带 token（保留原有方式）
-  ws = new WebSocket(`${protocol}//${location.host}/ws?token=${authToken}`);
+  // 使用 SERVER_URL 构建 WebSocket 地址（Capacitor 环境不能用 location.host）
+  const wsUrl = absUrl(`/ws?token=${authToken}`).replace(/^https/, 'wss').replace(/^http/, 'ws');
+  ws = new WebSocket(wsUrl);
 
   ws.onopen = async () => {
     console.log('WebSocket 已连接');
@@ -1214,7 +1214,8 @@ async function renderMessages() {
         });
       } else {
         // 自己发的：直接显示（添加 onerror 处理服务器文件丢失）
-        content = `<img src="${m.content}" alt="图片" onclick="window.open('${m.content}','_blank')" onerror="this.outerHTML='[图片已失效]'" style="max-width:200px;border-radius:12px;">`;
+        const selfImgUrl = absUrl(m.content);
+        content = `<img src="${selfImgUrl}" alt="图片" onclick="window.open('${selfImgUrl}','_blank')" onerror="this.outerHTML='[图片已失效]'" style="max-width:200px;border-radius:12px;">`;
       }
     } else if (m.mediaType === 'video') {
       const placeholderId = `media-${index}-${m.timestamp}`;
@@ -1228,7 +1229,7 @@ async function renderMessages() {
           if (el) el.textContent = '[视频解密失败]';
         });
       } else {
-        content = `<video src="${m.content}" controls style="max-width:200px;border-radius:12px;" onerror="this.outerHTML='[视频已失效]'"></video>`;
+        content = `<video src="${absUrl(m.content)}" controls style="max-width:200px;border-radius:12px;" onerror="this.outerHTML='[视频已失效]'"></video>`;
       }
     } else if (m.mediaType === 'audio') {
       // 语音消息
@@ -1395,7 +1396,7 @@ async function handleFileSelect(file, mediaType) {
     formData.append('mediaType', mediaType === 'file' ? 'file' : mediaType);
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
+    xhr.open('POST', absUrl('/upload'));
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {
@@ -1652,7 +1653,7 @@ async function handleGroupFileSelect(file, mediaType) {
   formData.append('mediaType', mediaType === 'file' ? 'file' : mediaType);
 
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/upload');
+  xhr.open('POST', absUrl('/upload'));
   xhr.onload = () => {
     if (xhr.status === 200) {
       const res = JSON.parse(xhr.responseText);
@@ -1769,7 +1770,7 @@ async function uploadVoiceMessage(blob, duration) {
     formData.append('file', blob, 'voice.webm');
     formData.append('mediaType', 'audio');
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
+    xhr.open('POST', absUrl('/upload'));
     xhr.onload = () => {
       if (xhr.status === 200) {
         const res = JSON.parse(xhr.responseText);
@@ -1793,7 +1794,7 @@ async function uploadVoiceMessage(blob, duration) {
     formData.append('mediaType', 'audio');
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
+    xhr.open('POST', absUrl('/upload'));
     xhr.onload = () => {
       if (xhr.status === 200) {
         const res = JSON.parse(xhr.responseText);
@@ -1818,7 +1819,7 @@ async function playVoiceMessage(url, fromId, el) {
         // 自己发的：直接播放
         blobUrl = url;
       } else {
-        const resp = await fetch(url);
+        const resp = await fetch(absUrl(url));
         const encBuf = await resp.arrayBuffer();
         const decBuf = await decryptFile(encBuf, fromId);
         blobUrl = URL.createObjectURL(new Blob([decBuf], { type: 'audio/webm' }));
@@ -1840,7 +1841,7 @@ async function playVoiceMessage(url, fromId, el) {
 // 下载解密文件
 async function downloadDecryptedFile(url, fromId, fileName) {
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(absUrl(url));
     const encBuf = await resp.arrayBuffer();
     const decBuf = await decryptFile(encBuf, fromId);
     const blobUrl = URL.createObjectURL(new Blob([decBuf]));
@@ -2307,7 +2308,7 @@ function renderPosts(posts) {
         </div>
       </div>
       <div class="post-content">${escapeHtml(p.content)}</div>
-      ${p.images && p.images.length ? `<div class="post-images">${p.images.map(img => `<img src="${img}" onclick="window.open('${img}','_blank')">`).join('')}</div>` : ''}
+      ${p.images && p.images.length ? `<div class="post-images">${p.images.map(img => `<img src="${absUrl(img)}" onclick="window.open('${absUrl(img)}','_blank')">`).join('')}</div>` : ''}
       <div class="post-actions">
         <span onclick="toggleCommentBox(${p.id})">💬 评论 (${(p.comments || []).length})</span>
       </div>
@@ -2444,7 +2445,7 @@ async function uploadTransferFile(file) {
     showToast('上传失败：网络错误');
   });
 
-  xhr.open('POST', '/api/transfer/upload');
+  xhr.open('POST', absUrl('/api/transfer/upload'));
   xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
   xhr.send(formData);
 }
@@ -2482,7 +2483,7 @@ function downloadTransferFile() {
   }
 
   // 直接通过浏览器跳转下载，避免 fetch+blob 在移动端的限制
-  const downloadUrl = `/api/transfer/download?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`;
+  const downloadUrl = absUrl(`/api/transfer/download?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`);
   const a = document.createElement('a');
   a.href = downloadUrl;
   a.download = $('downloadFilename').textContent || 'download';
@@ -3133,11 +3134,7 @@ function bindEvents() {
   // ===== 检查更新 =====
   $('checkUpdateBtn').addEventListener('click', checkForUpdates);
   // 显示服务器地址
-  if (typeof SERVER_URL !== 'undefined') {
-    $('serverUrlDisplay').textContent = SERVER_URL.replace(/^https?:\/\//, '');
-  } else {
-    $('serverUrlDisplay').textContent = location.host || '本地';
-  }
+  $('serverUrlDisplay').textContent = SERVER_URL.replace(/^https?:\/\//, '');
 
   // ===== 管理员面板 =====
   $('adminEnterChatBtn').addEventListener('click', enterChat);
