@@ -819,16 +819,18 @@ function applyTheme(theme) {
 function applyCustomColors(colors) {
   customColors = colors;
   const root = document.documentElement;
+  // 使用 removeProperty 清除变量，确保 var() 能正确回退到主题默认色
+  // （setProperty 设为空字符串会被视为有效值，导致回退失效）
   if (colors.bubble) root.style.setProperty('--custom-bubble', colors.bubble);
-  else root.style.setProperty('--custom-bubble', '');
+  else root.style.removeProperty('--custom-bubble');
   if (colors.sidebar) {
     // 侧边栏使用带透明度的颜色
     root.style.setProperty('--custom-sidebar', hexToRgba(colors.sidebar, 0.7));
   } else {
-    root.style.setProperty('--custom-sidebar', '');
+    root.style.removeProperty('--custom-sidebar');
   }
   if (colors.button) root.style.setProperty('--custom-button', colors.button);
-  else root.style.setProperty('--custom-button', '');
+  else root.style.removeProperty('--custom-button');
   localStorage.setItem('gc_custom_colors', JSON.stringify(colors));
 }
 
@@ -907,9 +909,9 @@ async function resetCustomColors() {
   customColors = { bubble: '', sidebar: '', button: '' };
   // 清除 :root 上的自定义变量，回退到主题默认
   const root = document.documentElement;
-  root.style.setProperty('--custom-bubble', '');
-  root.style.setProperty('--custom-sidebar', '');
-  root.style.setProperty('--custom-button', '');
+  root.style.removeProperty('--custom-bubble');
+  root.style.removeProperty('--custom-sidebar');
+  root.style.removeProperty('--custom-button');
   localStorage.removeItem('gc_custom_colors');
   // 同步颜色选择器 UI 为默认值
   $('colorBubble').value = defaults.bubble;
