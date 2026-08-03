@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlassChat APK 下载</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #D4EDDA 0%, #B7E4C7 50%, #C8E6C9 100%);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+.card {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 24px;
+  padding: 40px 32px;
+  text-align: center;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+.icon {
+  width: 80px; height: 80px; margin: 0 auto 20px;
+  background: linear-gradient(135deg, #74C69D, #40916C);
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px;
+  box-shadow: 0 4px 16px rgba(116,198,157,0.4);
+}
+h1 { font-size: 24px; color: #1b4332; margin-bottom: 8px; }
+p { font-size: 14px; color: #52b788; margin-bottom: 24px; line-height: 1.6; }
+.info {
+  background: rgba(255,255,255,0.4);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: #40916c;
+  text-align: left;
+}
+.info div { margin: 4px 0; }
+.download-btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #74C69D, #40916C);
+  color: white;
+  text-decoration: none;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(116,198,157,0.4);
+}
+.download-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(116,198,157,0.3);
+}
+.tip {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #95d5b2;
+}
+.warning {
+  margin-top: 12px;
+  background: rgba(255,159,10,0.12);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #936c00;
+  text-align: left;
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">💬</div>
+  <h1>GlassChat</h1>
+  <p>面对面私密聊天应用</p>
+  <div class="info">
+    <div>📦 文件大小：7.9 MB</div>
+    <div>📱 版本：1.0 (Release)</div>
+    <div>✅ 修复网络连接 (CORS + 绝对URL)</div>
+    <div>✅ 全屏显示无白边</div>
+    <div>✅ 内置更新检查功能</div>
+    <div>✅ 新签名证书</div>
+  </div>
+  <a href="/GlassChat.apk" class="download-btn" download>⬇️ 下载 APK 安装包</a>
+  <div class="warning">⚠️ 此版本使用了新签名证书，安装前请先卸载旧版 GlassChat，否则会提示「软件包冲突」。</div>
+  <div class="tip">安装前请在手机设置中开启「允许安装未知来源应用」</div>
+</div>
+</body>
+</html>
