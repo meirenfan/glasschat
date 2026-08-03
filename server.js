@@ -234,6 +234,18 @@ function addLog(action, details = {}) {
 // 解析 JSON 请求体
 app.use(express.json());
 
+// CORS 中间件 —— 允许 Capacitor WebView (localhost) 和其他来源跨域访问
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 // 静态文件服务（前端页面）—— dotfiles: 'allow' 确保 .well-known 目录可访问
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
