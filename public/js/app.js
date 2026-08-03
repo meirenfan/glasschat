@@ -663,8 +663,8 @@ function handleClearChat() {
 }
 
 // ====================== 检查更新 ======================
-const APP_VERSION = '1.3';
-const APP_VERSION_CODE = 4;
+const APP_VERSION = '1.4';
+const APP_VERSION_CODE = 5;
 
 /**
  * 下载更新 —— 多重回退策略，确保在 Capacitor WebView 中也能打开下载链接
