@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlassChat 一键部署指南</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #D4EDDA 0%, #B7E4C7 28%, #C8E6C9 55%, #D7EFE0 80%, #D4EDDA 100%);
+      background-size: 400% 400%;
+      animation: bgShift 22s ease infinite;
+      color: #14302A;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    @keyframes bgShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container { max-width: 680px; margin: 0 auto; padding-bottom: 60px; }
+    .header {
+      text-align: center;
+      padding: 40px 20px 30px;
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.45);
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(20,60,40,0.12);
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #74C69D, #2D6A4F);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .header p { font-size: 15px; color: #2D5A45; opacity: 0.8; }
+
+    .step {
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.45);
+      border-radius: 20px;
+      padding: 28px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(20,60,40,0.08);
+    }
+    .step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .step-num {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, #74C69D, #52B788);
+      color: #fff; font-size: 18px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(116,198,157,0.4);
+    }
+    .step-title { font-size: 18px; font-weight: 600; color: #14302A; }
+    .step-body { font-size: 15px; line-height: 1.7; color: #2D5A45; }
+    .step-body p { margin-bottom: 10px; }
+    .step-body code {
+      background: rgba(20,48,42,0.08);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      word-break: break-all;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px;
+      border-radius: 14px;
+      font-size: 16px; font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1);
+      cursor: pointer; border: none;
+      font-family: inherit;
+      margin: 8px 0;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #74C69D, #52B788);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(116,198,157,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 20px rgba(116,198,157,0.5); }
+    .btn-dark {
+      background: rgba(30,33,40,0.8);
+      color: #fff;
+      backdrop-filter: blur(10px);
+    }
+    .btn-dark:hover { transform: translateY(-2px) scale(1.02); }
+    .btn-blue {
+      background: linear-gradient(135deg, #007AFF, #0051D5);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,122,255,0.35);
+    }
+    .btn-blue:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 20px rgba(0,122,255,0.45); }
+    .btn-block { display: flex; width: 100%; justify-content: center; }
+    .warn {
+      background: rgba(255,149,0,0.12);
+      border: 1px solid rgba(255,149,0,0.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #8a5a00;
+      margin: 10px 0;
+    }
+    .tip {
+      background: rgba(0,122,255,0.08);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #004cb3;
+      margin: 10px 0;
+    }
+    .link-list { display: flex; flex-direction: column; gap: 10px; }
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      font-size: 13px;
+      color: #6B8F76;
+    }
+    .divider { height: 1px; background: rgba(20,48,42,0.1); margin: 16px 0; }
+    .check-list { list-style: none; padding: 0; }
+    .check-list li {
+      padding: 6px 0 6px 28px;
+      position: relative;
+      font-size: 14px;
+    }
+    .check-list li::before {
+      content: '✓';
+      position: absolute; left: 0; top: 6px;
+      width: 20px; height: 20px;
+      background: #74C69D; color: #fff;
+      border-radius: 50%;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- 头部 -->
+    <div class="header">
+      <h1>GlassChat 一键部署指南</h1>
+      <p>从代码到 APP，全部免费，约 15 分钟完成</p>
+    </div>
+
+    <!-- 步骤 1: GitHub -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">获取源码（已完成）</div>
+      </div>
+      <div class="step-body">
+        <p>你的代码已托管在 GitHub，这是所有后续步骤的基础。</p>
+        <div class="link-list">
+          <a class="btn btn-dark btn-block" href="https://github.com/meirenfan/glasschat" target="_blank">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            打开 GitHub 仓库
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤 2: Railway -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">部署到 Railway（已完成）</div>
+      </div>
+      <div class="step-body">
+        <p>网站已部署在 Railway，每次推送到 GitHub 会自动更新。</p>
+        <div class="link-list">
+          <a class="btn btn-primary btn-block" href="https://railway.app/dashboard" target="_blank">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Railway 控制台
+          </a>
+        </div>
+        <div class="tip">每次你修改代码并推送到 GitHub 后，Railway 会自动重新部署，1-2 分钟后网站就是最新版。</div>
+      </div>
+    </div>
+
+    <!-- 步骤 3: PWA Builder -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">生成 Android APK 安装包</div>
+      </div>
+      <div class="step-body">
+        <p>用 PWA Builder 把你的网站打包成 Android 安装包，完全免费。</p>
+
+        <div class="link-list">
+          <a class="btn btn-blue btn-block" href="https://www.pwabuilder.com" target="_blank">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            打开 PWA Builder
+          </a>
+        </div>
+
+        <div class="divider"></div>
+
+        <p><strong>操作步骤：</strong></p>
+        <ul class="check-list">
+          <li>打开 PWA Builder，输入你的 Railway 网站地址</li>
+          <li>点击 <strong>Start</strong>，等待检测完成</li>
+          <li>点击 <strong>Android</strong> 选项卡</li>
+          <li>点击 <strong>Generate Package</strong> 生成安装包</li>
+          <li>下载 ZIP 文件，里面有现成的 APK</li>
+          <li>把 APK 传到手机，安装即可</li>
+        </ul>
+
+        <div class="warn">安装 APK 时手机会提示"未知来源"，允许安装即可。这是正常的，因为你没有上架应用商店。</div>
+      </div>
+    </div>
+
+    <!-- 步骤 4: 手机安装 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div class="step-title">手机安装使用</div>
+      </div>
+      <div class="step-body">
+        <p>两种安装方式任选其一：</p>
+
+        <p><strong>方式 A：安装 APK（推荐）</strong></p>
+        <p>把步骤 3 下载的 APK 传到手机 → 点击安装 → 桌面出现 GlassChat 图标。</p>
+
+        <div class="divider"></div>
+
+        <p><strong>方式 B：浏览器添加到主屏幕（最快）</strong></p>
+        <p>手机浏览器打开你的 Railway 网站地址 → 浏览器菜单 → <strong>添加到主屏幕</strong> → 桌面出现图标。</p>
+
+        <div class="tip">两种方式效果一样：全屏运行、有独立图标、无浏览器地址栏。</div>
+      </div>
+    </div>
+
+    <!-- 后续更新 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">5</div>
+        <div class="step-title">后续如何更新？</div>
+      </div>
+      <div class="step-body">
+        <p><strong>更新代码 → 自动生效，无需重装 APK。</strong></p>
+        <ul class="check-list">
+          <li>你修改代码 → 推送到 GitHub</li>
+          <li>Railway 自动重新部署（1-2 分钟）</li>
+          <li>用户打开 APP 时，Service Worker 自动检测更新</li>
+          <li>提示"应用已更新"，刷新即可加载最新版</li>
+        </ul>
+        <div class="tip">只有在修改了 APP 图标或名称等原生配置时，才需要重新用 PWA Builder 生成 APK。普通功能更新完全不需要。</div>
+      </div>
+    </div>
+
+    <!-- 快速链接汇总 -->
+    <div class="step">
+      <div class="step-header">
+        <div class="step-num">★</div>
+        <div class="step-title">全部链接汇总</div>
+      </div>
+      <div class="step-body">
+        <div class="link-list">
+          <a class="btn btn-dark btn-block" href="https://github.com/meirenfan/glasschat" target="_blank">
+            GitHub 源码仓库
+          </a>
+          <a class="btn btn-primary btn-block" href="https://railway.app/dashboard" target="_blank">
+            Railway 部署控制台
+          </a>
+          <a class="btn btn-blue btn-block" href="https://www.pwabuilder.com" target="_blank">
+            PWA Builder（生成 APK）
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>GlassChat — 封闭式私有聊天应用</p>
+      <p style="margin-top:4px;">全部免费 · 源码开放 · 持续更新</p>
+    </div>
+
+  </div>
+</body>
+</html>
