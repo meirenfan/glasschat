@@ -463,7 +463,7 @@ app.get('/api/export-data', authMiddleware, (req, res) => {
     };
 
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="glasschat-backup-${safeUser.username}-${Date.now()}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="glasschat-backup-${Date.now()}.json"`);
     res.json(exportData);
   } catch (err) {
     res.status(500).json({ error: '导出数据失败' });
