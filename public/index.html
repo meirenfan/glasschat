@@ -999,10 +999,18 @@
               <button class="danger-btn" id="settingsClearChatBtn" style="margin-top:8px;background:var(--warning);">清除聊天记录</button>
               <button class="glass-btn-primary" id="settingsAdminBtn" style="display:none;margin-top:10px;width:100%;">进入管理员面板</button>
             </section>
+            <!-- 数据管理 -->
+            <section class="settings-section">
+              <h3>数据管理</h3>
+              <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;">导出你的聊天记录、好友列表等数据到文件，或从备份文件恢复。</p>
+              <button class="glass-btn-primary" id="exportDataBtn" style="width:100%;margin-bottom:8px;">导出我的数据</button>
+              <button class="glass-btn-primary" id="importDataBtn" style="width:100%;background:var(--info);">导入数据</button>
+              <input type="file" id="importFileInput" accept=".json" style="display:none;">
+            </section>
             <!-- 关于与更新 -->
             <section class="settings-section">
               <h3>关于与更新</h3>
-              <div class="account-info-row"><span>当前版本</span><span id="appVersionDisplay">1.0</span></div>
+              <div class="account-info-row"><span>当前版本</span><span id="appVersionDisplay">1.1</span></div>
               <div class="account-info-row"><span>服务器</span><span id="serverUrlDisplay">—</span></div>
               <button class="glass-btn-primary" id="checkUpdateBtn" style="margin-top:10px;width:100%;">检查更新</button>
               <div id="updateResult" class="hidden" style="margin-top:10px;padding:12px;border-radius:12px;font-size:14px;"></div>

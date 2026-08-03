@@ -47,6 +47,7 @@ const sessionsFile = path.join(dataDir, 'sessions.json');
 const groupsFile = path.join(dataDir, 'groups.json');
 const channelsFile = path.join(dataDir, 'channels.json');
 const transfersFile = path.join(dataDir, 'transfers.json');
+const messagesFile = path.join(dataDir, 'messages.json');
 
 // ============================================================================
 // 二、密码哈希与令牌生成
@@ -130,6 +131,14 @@ function saveChannels(data) {
   writeJSON(channelsFile, data);
 }
 
+// 消息历史存储 —— 云端持久化（存储加密后的消息内容，服务器无法解密）
+function loadMessages() {
+  return readJSON(messagesFile, { privateMessages: {}, groupMessages: {} });
+}
+function saveMessages(data) {
+  writeJSON(messagesFile, data);
+}
+
 // ============================================================================
 // 五、初始化数据文件（仅在文件不存在时创建）
 // ============================================================================
@@ -168,6 +177,89 @@ if (!fs.existsSync(groupsFile)) {
 // 初始化频道数据
 if (!fs.existsSync(channelsFile)) {
   saveChannels({ channels: [], nextChannelId: 1, nextPostId: 1 });
+}
+
+// 初始化消息历史数据
+if (!fs.existsSync(messagesFile)) {
+  saveMessages({ privateMessages: {}, groupMessages: {} });
+}
+
+// ============================================================================
+// 六、消息历史存储工具
+// ============================================================================
+
+/**
+ * 保存私聊消息到云端（加密内容，服务器无法读取）
+ * 按 "minId-maxId" 作为 key 存储，双方共享同一份记录
+ */
+function storePrivateMessage(fromUserId, toUserId, content, mediaType, timestamp, extra = {}) {
+  const data = loadMessages();
+  const key = fromUserId < toUserId ? `${fromUserId}-${toUserId}` : `${toUserId}-${fromUserId}`;
+  if (!data.privateMessages[key]) data.privateMessages[key] = [];
+  data.privateMessages[key].push({
+    from: fromUserId,
+    to: toUserId,
+    content,
+    mediaType: mediaType || 'text',
+    timestamp,
+    ...extra
+  });
+  // 限制每对用户最多保存 5000 条消息
+  if (data.privateMessages[key].length > 5000) {
+    data.privateMessages[key] = data.privateMessages[key].slice(-5000);
+  }
+  saveMessages(data);
+}
+
+/**
+ * 保存群聊消息到云端
+ */
+function storeGroupMessage(groupId, fromUserId, content, mediaType, timestamp, extra = {}) {
+  const data = loadMessages();
+  if (!data.groupMessages[groupId]) data.groupMessages[groupId] = [];
+  data.groupMessages[groupId].push({
+    from: fromUserId,
+    content,
+    mediaType: mediaType || 'text',
+    timestamp,
+    ...extra
+  });
+  if (data.groupMessages[groupId].length > 5000) {
+    data.groupMessages[groupId] = data.groupMessages[groupId].slice(-5000);
+  }
+  saveMessages(data);
+}
+
+/**
+ * 获取某用户相关的所有私聊消息
+ */
+function getPrivateMessagesForUser(userId) {
+  const data = loadMessages();
+  const result = {};
+  for (const [key, msgs] of Object.entries(data.privateMessages)) {
+    const [id1, id2] = key.split('-').map(Number);
+    if (id1 === userId || id2 === userId) {
+      const otherId = id1 === userId ? id2 : id1;
+      result[otherId] = msgs;
+    }
+  }
+  return result;
+}
+
+/**
+ * 获取某用户所在所有群的消息
+ */
+function getGroupMessagesForUser(userId) {
+  const data = loadMessages();
+  const groupsData = loadGroups();
+  const userGroups = groupsData.groups.filter(g => g.members && g.members.includes(userId));
+  const result = {};
+  for (const g of userGroups) {
+    if (data.groupMessages[g.id]) {
+      result[g.id] = data.groupMessages[g.id];
+    }
+  }
+  return result;
 }
 
 // ============================================================================
@@ -260,11 +352,11 @@ app.get('/GlassChat.apk', (req, res) => {
 // APK 版本信息（供 APP 内置更新检查使用）
 app.get('/api/version', (req, res) => {
   res.json({
-    version: '1.0',
-    versionCode: 1,
+    version: '1.1',
+    versionCode: 2,
     apkUrl: '/GlassChat.apk',
     downloadUrl: '/GlassChat.apk',
-    updateInfo: 'GlassChat 最新版本'
+    updateInfo: 'v1.1: 新增云端消息记忆、数据导出/导入功能'
   });
 });
 
@@ -315,6 +407,130 @@ function adminMiddleware(req, res, next) {
   }
   next();
 }
+
+// ============================================================================
+// 八-B、消息历史 & 数据导出/导入 API
+// ============================================================================
+
+/**
+ * GET /api/messages/history
+ * 获取当前用户的所有聊天记录（私聊 + 群聊），云端持久化
+ */
+app.get('/api/messages/history', authMiddleware, (req, res) => {
+  try {
+    const privateMsgs = getPrivateMessagesForUser(req.user.id);
+    const groupMsgs = getGroupMessagesForUser(req.user.id);
+    res.json({
+      success: true,
+      privateMessages: privateMsgs,
+      groupMessages: groupMsgs
+    });
+  } catch (err) {
+    res.status(500).json({ error: '加载消息历史失败' });
+  }
+});
+
+/**
+ * GET /api/export-data
+ * 导出当前用户的完整数据（个人资料、好友、群组、聊天记录）
+ */
+app.get('/api/export-data', authMiddleware, (req, res) => {
+  try {
+    const usersData = loadUsers();
+    const user = findUserById(usersData, req.user.id);
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+
+    const safeUser = getSafeUser(user);
+    const groupsData = loadGroups();
+    const userGroups = groupsData.groups.filter(g => g.members && g.members.includes(req.user.id));
+    const privateMsgs = getPrivateMessagesForUser(req.user.id);
+    const groupMsgs = getGroupMessagesForUser(req.user.id);
+
+    const exportData = {
+      version: '1.1',
+      exportedAt: new Date().toISOString(),
+      user: safeUser,
+      friends: safeUser.friends || [],
+      blocked: safeUser.blocked || [],
+      groups: userGroups.map(g => ({
+        id: g.id,
+        name: g.name,
+        members: g.members,
+        createdAt: g.createdAt
+      })),
+      privateMessages: privateMsgs,
+      groupMessages: groupMsgs
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="glasschat-backup-${safeUser.username}-${Date.now()}.json"`);
+    res.json(exportData);
+  } catch (err) {
+    res.status(500).json({ error: '导出数据失败' });
+  }
+});
+
+/**
+ * POST /api/import-data
+ * 导入用户数据（合并好友列表和聊天记录）
+ */
+app.post('/api/import-data', authMiddleware, (req, res) => {
+  try {
+    const importData = req.body;
+    if (!importData || !importData.user) {
+      return res.status(400).json({ error: '无效的导入数据格式' });
+    }
+
+    const usersData = loadUsers();
+    const user = findUserById(usersData, req.user.id);
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+
+    // 合并好友列表（去重）
+    if (importData.friends && Array.isArray(importData.friends)) {
+      if (!user.friends) user.friends = [];
+      importData.friends.forEach(f => {
+        if (!user.friends.find(existing => existing.id === f.id)) {
+          user.friends.push(f);
+        }
+      });
+    }
+
+    // 合并聊天记录
+    const msgsData = loadMessages();
+
+    if (importData.privateMessages) {
+      for (const [otherIdStr, msgs] of Object.entries(importData.privateMessages)) {
+        const otherId = Number(otherIdStr);
+        const key = req.user.id < otherId ? `${req.user.id}-${otherId}` : `${otherId}-${req.user.id}`;
+        if (!msgsData.privateMessages[key]) msgsData.privateMessages[key] = [];
+        msgs.forEach(m => {
+          if (!msgsData.privateMessages[key].find(x => x.timestamp === m.timestamp)) {
+            msgsData.privateMessages[key].push(m);
+          }
+        });
+      }
+    }
+
+    if (importData.groupMessages) {
+      for (const [groupId, msgs] of Object.entries(importData.groupMessages)) {
+        if (!msgsData.groupMessages[groupId]) msgsData.groupMessages[groupId] = [];
+        msgs.forEach(m => {
+          if (!msgsData.groupMessages[groupId].find(x => x.timestamp === m.timestamp)) {
+            msgsData.groupMessages[groupId].push(m);
+          }
+        });
+      }
+    }
+
+    saveUsers(usersData);
+    saveMessages(msgsData);
+
+    addLog('用户导入数据', { userId: req.user.id, username: user.username });
+    res.json({ success: true, message: '数据导入成功' });
+  } catch (err) {
+    res.status(500).json({ error: '导入数据失败: ' + (err.message || '未知错误') });
+  }
+});
 
 // ============================================================================
 // 九、文件上传配置（Multer）
@@ -1637,6 +1853,11 @@ wss.on('connection', (ws, req) => {
       case 'private-message': {
         const targetUserId = msg.to;
         const timestamp = Date.now();
+        // 云端持久化（存储加密内容，服务器无法读取）
+        storePrivateMessage(userInfo.userId, targetUserId, msg.content, msg.mediaType || 'text', timestamp, {
+          ...(msg.fileName ? { fileName: msg.fileName } : {}),
+          ...(msg.duration ? { duration: msg.duration } : {})
+        });
         // 中继给目标用户的所有连接
         sendToUser(targetUserId, {
           type: 'private-message',
@@ -1662,6 +1883,11 @@ wss.on('connection', (ws, req) => {
       case 'group-message': {
         const targetUserId = msg.to;
         const timestamp = msg.timestamp || Date.now();
+        // 云端持久化
+        storeGroupMessage(msg.groupId, userInfo.userId, msg.content, msg.mediaType || 'text', timestamp, {
+          ...(msg.fileName ? { fileName: msg.fileName } : {}),
+          ...(msg.duration ? { duration: msg.duration } : {})
+        });
         sendToUser(targetUserId, {
           type: 'group-message',
           from: userInfo.userId,

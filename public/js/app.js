@@ -287,6 +287,106 @@ function loadChatHistory() {
   }
 }
 
+/** 从云端服务器加载消息历史（跨设备同步） */
+async function loadCloudMessageHistory() {
+  if (!authToken) return;
+  try {
+    const data = await api('messages/history');
+    if (!data.success) return;
+
+    // 合并私聊消息
+    if (data.privateMessages) {
+      for (const [uidStr, msgs] of Object.entries(data.privateMessages)) {
+        const uid = Number(uidStr);
+        if (!conversations[uid]) conversations[uid] = [];
+        msgs.forEach(m => {
+          if (!conversations[uid].find(x => x.timestamp === m.timestamp)) {
+            conversations[uid].push(m);
+          }
+        });
+        // 按时间排序
+        conversations[uid].sort((a, b) => a.timestamp - b.timestamp);
+      }
+    }
+
+    // 合并群聊消息
+    if (data.groupMessages) {
+      for (const [gidStr, msgs] of Object.entries(data.groupMessages)) {
+        const gid = Number(gidStr);
+        if (!groupConversations[gid]) {
+          // 尝试从已有群组信息中获取名称
+          let gName = `群${gid}`;
+          const existingGroup = Object.values(groupConversations).find(g => g.id === gid);
+          if (existingGroup) gName = existingGroup.name;
+          groupConversations[gid] = { id: gid, name: gName, members: [], messages: [] };
+        }
+        msgs.forEach(m => {
+          if (!groupConversations[gid].messages.find(x => x.timestamp === m.timestamp)) {
+            groupConversations[gid].messages.push(m);
+          }
+        });
+        groupConversations[gid].messages.sort((a, b) => a.timestamp - b.timestamp);
+      }
+    }
+
+    // 保存到 localStorage
+    saveChatHistory();
+    renderConversations();
+    console.log('云端消息历史加载完成');
+  } catch (err) {
+    console.error('加载云端消息历史失败:', err);
+  }
+}
+
+/** 导出用户数据 */
+async function exportUserData() {
+  try {
+    showToast('正在导出数据...');
+    const res = await fetch(absUrl('/api/export-data'), {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) throw new Error('导出失败');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `glasschat-backup-${myName}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('数据导出成功');
+  } catch (err) {
+    showToast('导出失败: ' + err.message);
+  }
+}
+
+/** 导入用户数据 */
+async function importUserData(file) {
+  if (!file) return;
+  try {
+    showToast('正在导入数据...');
+    const text = await file.text();
+    const importData = JSON.parse(text);
+    const res = await fetch(absUrl('/api/import-data'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify(importData)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '导入失败');
+    showToast('数据导入成功，正在刷新...');
+    // 重新加载数据
+    loadFriends();
+    await loadCloudMessageHistory();
+  } catch (err) {
+    showToast('导入失败: ' + err.message);
+  }
+}
+
 // ====================== 认证功能 ======================
 
 // 页面加载时检查登录状态
@@ -360,6 +460,8 @@ function enterChat() {
   // 加载好友 / 社区（容错：接口缺失则静默）
   loadFriends();
   loadChannels();
+  // 从云端加载聊天记录（跨设备同步）
+  loadCloudMessageHistory();
 }
 
 // 切换到登录表单
@@ -537,8 +639,8 @@ function handleClearChat() {
 }
 
 // ====================== 检查更新 ======================
-const APP_VERSION = '1.0';
-const APP_VERSION_CODE = 1;
+const APP_VERSION = '1.1';
+const APP_VERSION_CODE = 2;
 
 async function checkForUpdates() {
   const btn = $('checkUpdateBtn');
@@ -3130,6 +3232,15 @@ function bindEvents() {
   $('settingsSwitchAccountBtn').addEventListener('click', handleSwitchAccount);
   $('settingsClearChatBtn').addEventListener('click', handleClearChat);
   $('settingsAdminBtn').addEventListener('click', showAdminPanel);
+
+  // ===== 数据导出/导入 =====
+  $('exportDataBtn').addEventListener('click', exportUserData);
+  $('importDataBtn').addEventListener('click', () => $('importFileInput').click());
+  $('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) importUserData(file);
+    e.target.value = ''; // 重置以便重复导入同一文件
+  });
 
   // ===== 检查更新 =====
   $('checkUpdateBtn').addEventListener('click', checkForUpdates);
