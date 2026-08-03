@@ -639,12 +639,78 @@ function handleClearChat() {
 }
 
 // ====================== 检查更新 ======================
-const APP_VERSION = '1.1';
-const APP_VERSION_CODE = 2;
+const APP_VERSION = '1.2';
+const APP_VERSION_CODE = 3;
+
+/**
+ * 下载更新 —— 多重回退策略，确保在 Capacitor WebView 中也能打开下载链接
+ * 方法1: Capacitor Browser 插件（如果已安装）
+ * 方法2: 创建临时 <a> 标签并模拟点击（WebView 内下载）
+ * 方法3: window.open 在新窗口打开
+ * 方法4: 直接修改 location.href 跳转
+ */
+function downloadUpdate(url) {
+  console.log('[Update] 尝试下载:', url);
+
+  // 方法1: Capacitor Browser 插件
+  try {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      window.Capacitor.Plugins.Browser.open({ url })
+        .then(() => { console.log('[Update] Browser 插件打开成功'); })
+        .catch(function(err) {
+          console.warn('[Update] Browser 插件失败，尝试回退:', err);
+          fallbackDownload(url);
+        });
+      return;
+    }
+  } catch (e) {
+    console.warn('[Update] Browser 插件异常:', e);
+  }
+
+  fallbackDownload(url);
+}
+
+/** 回退下载方法 */
+function fallbackDownload(url) {
+  // 方法2: 创建临时 <a> 标签模拟点击
+  try {
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'GlassChat.apk';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { document.body.removeChild(a); }, 1000);
+    console.log('[Update] <a> 标签点击已触发');
+    return;
+  } catch (e) {
+    console.warn('[Update] <a> 标签失败:', e);
+  }
+
+  // 方法3: window.open
+  try {
+    var win = window.open(url, '_blank');
+    if (win) {
+      console.log('[Update] window.open 成功');
+      return;
+    }
+  } catch (e) {
+    console.warn('[Update] window.open 失败:', e);
+  }
+
+  // 方法4: 直接跳转
+  console.log('[Update] 使用 location.href 跳转');
+  window.location.href = url;
+}
+
+// 确保函数在全局作用域可访问（inline onclick 需要）
+window.downloadUpdate = downloadUpdate;
 
 async function checkForUpdates() {
-  const btn = $('checkUpdateBtn');
-  const result = $('updateResult');
+  var btn = $('checkUpdateBtn');
+  var result = $('updateResult');
   if (!btn || !result) return;
 
   btn.disabled = true;
@@ -655,25 +721,44 @@ async function checkForUpdates() {
   result.textContent = '正在连接服务器检查版本...';
 
   try {
-    const url = absUrl('/api/version');
-    const res = await fetch(url);
+    var url = absUrl('/api/version');
+    var res = await fetch(url);
     if (!res.ok) throw new Error('服务器响应异常');
-    const data = await res.json();
+    var data = await res.json();
 
-    const serverVersionCode = data.versionCode || 1;
-    const serverVersion = data.version || '1.0';
+    var serverVersionCode = data.versionCode || 1;
+    var serverVersion = data.version || '1.0';
 
     if (serverVersionCode > APP_VERSION_CODE) {
+      var downloadUrl = absUrl(data.downloadUrl);
       result.style.background = 'rgba(255,159,10,0.15)';
-      result.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">发现新版本 v${serverVersion}</div>` +
-        `<div style="margin-bottom:10px;">${data.updateInfo || '有新版本可用'}</div>` +
-        `<a href="${absUrl(data.downloadUrl)}" ` +
-        `style="display:inline-block;padding:10px 20px;background:var(--btn-highlight);color:#fff;` +
-        `border-radius:12px;text-decoration:none;font-weight:600;">立即下载更新</a>`;
+      result.innerHTML =
+        '<div style="font-weight:600;margin-bottom:8px;">发现新版本 v' + serverVersion + '</div>' +
+        '<div style="margin-bottom:12px;">' + (data.updateInfo || '有新版本可用') + '</div>' +
+        '<a id="downloadUpdateBtn" href="' + downloadUrl + '" download="GlassChat.apk" ' +
+        'style="display:inline-block;padding:12px 28px;background:var(--btn-highlight);color:#fff;' +
+        'border:none;border-radius:14px;font-weight:600;font-size:17px;cursor:pointer;' +
+        'text-decoration:none;position:relative;z-index:999;touch-action:manipulation;' +
+        '-webkit-tap-highlight-color:transparent;user-select:none;">立即下载更新</a>' +
+        '<div style="margin-top:10px;font-size:12px;color:var(--text-tertiary);">' +
+        '点击按钮开始下载，下载完成后点击安装</div>' +
+        '<div style="margin-top:6px;font-size:12px;color:var(--text-tertiary);">' +
+        '如无法下载，请用手机浏览器访问：<br>' + downloadUrl + '</div>';
+
+      // 用 addEventListener 绑定点击事件（比 inline onclick 更可靠）
+      var dlBtn = $('downloadUpdateBtn');
+      if (dlBtn) {
+        dlBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          downloadUpdate(downloadUrl);
+          return false;
+        }, { passive: false });
+      }
     } else {
       result.style.background = 'rgba(48,209,88,0.15)';
-      result.innerHTML = `<div style="font-weight:600;">当前已是最新版本 v${APP_VERSION}</div>` +
-        `<div style="margin-top:4px;font-size:12px;opacity:0.7;">服务器版本: v${serverVersion}</div>`;
+      result.innerHTML = '<div style="font-weight:600;">当前已是最新版本 v' + APP_VERSION + '</div>' +
+        '<div style="margin-top:4px;font-size:12px;opacity:0.7;">服务器版本: v' + serverVersion + '</div>';
     }
   } catch (err) {
     result.style.background = 'rgba(255,69,58,0.15)';

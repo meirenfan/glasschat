@@ -352,11 +352,11 @@ app.get('/GlassChat.apk', (req, res) => {
 // APK 版本信息（供 APP 内置更新检查使用）
 app.get('/api/version', (req, res) => {
   res.json({
-    version: '1.1',
-    versionCode: 2,
+    version: '1.2',
+    versionCode: 3,
     apkUrl: '/GlassChat.apk',
     downloadUrl: '/GlassChat.apk',
-    updateInfo: 'v1.1: 新增云端消息记忆、数据导出/导入功能'
+    updateInfo: 'v1.2: 修复更新下载按钮无法点击的问题，优化下载流程'
   });
 });
 
