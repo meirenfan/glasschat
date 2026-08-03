@@ -234,8 +234,18 @@ function addLog(action, details = {}) {
 // 解析 JSON 请求体
 app.use(express.json());
 
-// 静态文件服务（前端页面）
-app.use(express.static(path.join(__dirname, 'public')));
+// 静态文件服务（前端页面）—— dotfiles: 'allow' 确保 .well-known 目录可访问
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
+
+/**
+ * 数字资产链接（TWA 验证）
+ * Android TWA APK 通过访问 /.well-known/assetlinks.json 验证网站所有权
+ * 验证通过后 APK 内不再显示浏览器地址栏
+ */
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
+});
 
 /**
  * 认证中间件 —— 校验 Bearer token
