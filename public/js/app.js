@@ -2743,25 +2743,100 @@ async function queryTransferCode() {
   }
 }
 
-// 下载文件（直接跳转URL，兼容移动端浏览器原生下载）
-function downloadTransferFile() {
-  const code = $('downloadFileBtn').dataset.code;
+// 下载文件 —— 兼容 Capacitor WebView 和普通浏览器，带进度反馈
+async function downloadTransferFile() {
+  var code = $('downloadFileBtn').dataset.code;
   if (!code) {
     showToast('请先查询取件码');
     return;
   }
 
-  // 直接通过浏览器跳转下载，避免 fetch+blob 在移动端的限制
-  const downloadUrl = absUrl(`/api/transfer/download?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`);
-  const a = document.createElement('a');
-  a.href = downloadUrl;
-  a.download = $('downloadFilename').textContent || 'download';
-  // 加 target=_blank 避免部分浏览器跳转后无法返回
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  showToast('下载已开始');
+  var filename = $('downloadFilename').textContent || 'download';
+  var btn = $('downloadFileBtn');
+  var downloadUrl = absUrl('/api/transfer/download?code=' + encodeURIComponent(code) + '&token=' + encodeURIComponent(authToken));
+
+  // 方法1: Capacitor Browser 插件（在系统浏览器中打开下载链接）
+  try {
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      showToast('正在用浏览器下载...');
+      btn.textContent = '正在用浏览器下载...';
+      btn.disabled = true;
+      await window.Capacitor.Plugins.Browser.open({ url: downloadUrl });
+      setTimeout(function() {
+        btn.textContent = '下载文件';
+        btn.disabled = false;
+      }, 3000);
+      return;
+    }
+  } catch (e) {
+    console.warn('Browser插件失败，尝试其他方式:', e);
+  }
+
+  // 方法2: fetch + blob（带进度条，普通浏览器有效）
+  btn.disabled = true;
+  btn.textContent = '下载中... 0%';
+
+  try {
+    var res = await fetch(downloadUrl);
+    if (!res.ok) throw new Error('下载失败: ' + res.status);
+
+    var total = parseInt(res.headers.get('content-length') || '0');
+    var reader = res.body.getReader();
+    var chunks = [];
+    var received = 0;
+
+    while (true) {
+      var result = await reader.read();
+      if (result.done) break;
+      chunks.push(result.value);
+      received += result.value.length;
+      if (total > 0) {
+        var percent = Math.round((received / total) * 100);
+        btn.textContent = '下载中... ' + percent + '%';
+      }
+    }
+
+    var blob = new Blob(chunks);
+    var url = URL.createObjectURL(blob);
+
+    // 尝试触发下载
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 3000);
+
+    btn.textContent = '下载完成';
+    showToast('文件已下载: ' + filename);
+    setTimeout(function() {
+      btn.textContent = '下载文件';
+      btn.disabled = false;
+    }, 2000);
+
+  } catch (err) {
+    console.error('fetch下载失败:', err);
+
+    // 方法3: 回退到直接跳转
+    btn.textContent = '尝试直接下载...';
+    var a2 = document.createElement('a');
+    a2.href = downloadUrl;
+    a2.download = filename;
+    a2.target = '_blank';
+    document.body.appendChild(a2);
+    a2.click();
+    document.body.removeChild(a2);
+
+    showToast('下载已开始');
+    setTimeout(function() {
+      btn.textContent = '下载文件';
+      btn.disabled = false;
+    }, 2000);
+  }
 }
 
 // 复制取件码
