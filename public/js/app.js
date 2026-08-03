@@ -518,6 +518,7 @@ async function handleLogout() {
 // 切换账号：清除凭据和聊天记录，显示登录界面
 function handleSwitchAccount() {
   clearCredentials();
+  clearKeyPair(); // 清除加密密钥对
   if (myName) localStorage.removeItem(`gc_chat_${myName}`);
   handleLogout();
   showToast('已清除账号记忆，请重新登录');
@@ -1154,32 +1155,33 @@ async function renderMessages() {
       content = `<div class="message-recalled">消息已撤回</div>`;
     } else if (m.mediaType === 'image') {
       const placeholderId = `media-${index}-${m.timestamp}`;
-      content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
       if (m.from !== myId) {
         // 对方发来的：异步解密
+        content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
         fetchAndDecryptFile(m.content, m.from).then(blobUrl => {
           const el = document.getElementById(placeholderId);
-          if (el) el.outerHTML = `<img src="${blobUrl}" alt="图片" onclick="window.open('${blobUrl}','_blank')">`;
+          if (el) el.outerHTML = `<img src="${blobUrl}" alt="图片" onclick="window.open('${blobUrl}','_blank')" onerror="this.parentElement.innerHTML='[图片加载失败]'">`;
         }).catch(() => {
           const el = document.getElementById(placeholderId);
           if (el) el.textContent = '[图片解密失败]';
         });
       } else {
-        content = `<img src="${m.content}" alt="图片" onclick="window.open('${m.content}','_blank')">`;
+        // 自己发的：直接显示（添加 onerror 处理服务器文件丢失）
+        content = `<img src="${m.content}" alt="图片" onclick="window.open('${m.content}','_blank')" onerror="this.outerHTML='[图片已失效]'" style="max-width:200px;border-radius:12px;">`;
       }
     } else if (m.mediaType === 'video') {
       const placeholderId = `media-${index}-${m.timestamp}`;
-      content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
       if (m.from !== myId) {
+        content = `<div id="${placeholderId}" class="media-loading">🔓 解密中...</div>`;
         fetchAndDecryptFile(m.content, m.from).then(blobUrl => {
           const el = document.getElementById(placeholderId);
-          if (el) el.outerHTML = `<video src="${blobUrl}" controls></video>`;
+          if (el) el.outerHTML = `<video src="${blobUrl}" controls style="max-width:200px;border-radius:12px;"></video>`;
         }).catch(() => {
           const el = document.getElementById(placeholderId);
           if (el) el.textContent = '[视频解密失败]';
         });
       } else {
-        content = `<video src="${m.content}" controls></video>`;
+        content = `<video src="${m.content}" controls style="max-width:200px;border-radius:12px;" onerror="this.outerHTML='[视频已失效]'"></video>`;
       }
     } else if (m.mediaType === 'audio') {
       // 语音消息
