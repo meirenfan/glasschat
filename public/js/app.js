@@ -23,6 +23,7 @@ let selectedGroup = null;      // 当前选中的群聊 { id, name, members }
 let onlineUsers = [];          // 在线用户列表 [{ id, name, publicKey }]
 let conversations = {};        // 私聊消息：{ userId: [message] }
 let groupConversations = {};   // 群聊：{ groupId: { id, name, members:[], messages:[] } }
+let chatHistoryLoaded = false; // 标记是否已加载本地聊天记录
 let friends = [];              // 好友列表
 let friendRequests = [];       // 好友请求列表
 let blockedUsers = [];         // 屏蔽用户列表
@@ -193,11 +194,110 @@ function getCurrentConversation() {
   return null;
 }
 
+// ====================== 账号记忆功能 ======================
+
+/** 保存登录凭据到 localStorage（实现账号记忆）*/
+function saveCredentials(username, password) {
+  localStorage.setItem('gc_saved_user', username);
+  localStorage.setItem('gc_saved_pass', password);
+}
+
+/** 读取已保存的登录凭据 */
+function loadCredentials() {
+  const username = localStorage.getItem('gc_saved_user');
+  const password = localStorage.getItem('gc_saved_pass');
+  if (username && password) return { username, password };
+  return null;
+}
+
+/** 清除已保存的登录凭据 */
+function clearCredentials() {
+  localStorage.removeItem('gc_saved_user');
+  localStorage.removeItem('gc_saved_pass');
+}
+
+/** 使用已保存的凭据自动登录 */
+async function autoLogin(username, password) {
+  try {
+    const data = await api('login', 'POST', { username, password });
+    authToken = data.token;
+    localStorage.setItem('authToken', authToken);
+    myName = data.user.username;
+    myRole = data.user.role;
+    myDbId = data.user.id;
+    enterChat();
+    return true;
+  } catch (err) {
+    clearCredentials();
+    return false;
+  }
+}
+
+// ====================== 聊天记录持久化 ======================
+
+/** 保存聊天记录到 localStorage（实现聊天内容记忆）*/
+function saveChatHistory() {
+  if (!myName) return;
+  try {
+    const data = {
+      conversations,
+      groupConversations,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(`gc_chat_${myName}`, JSON.stringify(data));
+  } catch (err) {
+    // localStorage 可能空间不足，静默处理
+  }
+}
+
+/** 从 localStorage 加载聊天记录 */
+function loadChatHistory() {
+  if (!myName) return;
+  const raw = localStorage.getItem(`gc_chat_${myName}`);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    // 恢复私聊记录（key 为数据库用户 ID，跨会话稳定）
+    if (data.conversations) {
+      Object.entries(data.conversations).forEach(([uid, msgs]) => {
+        if (!conversations[uid]) conversations[uid] = [];
+        msgs.forEach(m => {
+          if (!conversations[uid].find(x => x.timestamp === m.timestamp)) {
+            conversations[uid].push(m);
+          }
+        });
+      });
+    }
+    // 恢复群聊记录（群 ID 跨会话稳定）
+    if (data.groupConversations) {
+      Object.entries(data.groupConversations).forEach(([gid, g]) => {
+        if (!groupConversations[gid]) {
+          groupConversations[gid] = g;
+        } else {
+          g.messages.forEach(m => {
+            if (!groupConversations[gid].messages.find(x => x.timestamp === m.timestamp)) {
+              groupConversations[gid].messages.push(m);
+            }
+          });
+        }
+      });
+    }
+  } catch (err) {
+    // JSON 解析失败，静默处理
+  }
+}
+
 // ====================== 认证功能 ======================
 
 // 页面加载时检查登录状态
 async function checkSession() {
   if (!authToken) {
+    // 没有令牌，尝试用已保存的凭据自动登录
+    const creds = loadCredentials();
+    if (creds) {
+      const ok = await autoLogin(creds.username, creds.password);
+      if (ok) return;
+    }
     showLoginScreen();
     return;
   }
@@ -208,9 +308,14 @@ async function checkSession() {
     myDbId = data.id;
     enterChat();
   } catch (err) {
-    // token 过期或无效
+    // token 过期或无效，尝试自动重新登录
     localStorage.removeItem('authToken');
     authToken = null;
+    const creds = loadCredentials();
+    if (creds) {
+      const ok = await autoLogin(creds.username, creds.password);
+      if (ok) return;
+    }
     showLoginScreen();
   }
 }
@@ -298,6 +403,7 @@ async function handleLogin() {
     myName = data.user.username;
     myRole = data.user.role;
     myDbId = data.user.id;
+    saveCredentials(username, password); // 保存凭据，实现账号记忆
     showToast('登录成功');
     enterChat();
   } catch (err) {
@@ -329,6 +435,7 @@ async function handleAdminLogin() {
     myName = data.user.username;
     myRole = data.user.role;
     myDbId = data.user.id;
+    saveCredentials(username, password); // 保存凭据，实现账号记忆
     showToast('管理员登录成功');
     enterChat();
     showAdminPanel();
@@ -390,7 +497,7 @@ async function handleLogout() {
   myRole = '';
   myDbId = null;
   if (ws) { ws.close(); ws = null; }
-  // 清空状态
+  // 清空状态（保留已保存凭据和聊天记录，实现账号记忆和聊天记忆）
   selectedContact = null;
   selectedGroup = null;
   onlineUsers = [];
@@ -404,7 +511,28 @@ async function handleLogout() {
   unreadCounts = {};
   pinnedConversations.clear();
   mutedConversations.clear();
+  chatHistoryLoaded = false;
   showLoginScreen();
+}
+
+// 切换账号：清除凭据和聊天记录，显示登录界面
+function handleSwitchAccount() {
+  clearCredentials();
+  if (myName) localStorage.removeItem(`gc_chat_${myName}`);
+  handleLogout();
+  showToast('已清除账号记忆，请重新登录');
+}
+
+// 清除聊天记录
+function handleClearChat() {
+  if (myName) {
+    localStorage.removeItem(`gc_chat_${myName}`);
+    conversations = {};
+    groupConversations = {};
+    renderMessages();
+    renderConversations();
+    showToast('聊天记录已清除');
+  }
 }
 
 // ====================== 主题系统 ======================
@@ -637,6 +765,11 @@ async function handleMessage(msg) {
 
     case 'user-list':
       onlineUsers = msg.users.filter(u => u.id !== myId);
+      // 首次收到用户列表时加载本地聊天记录
+      if (!chatHistoryLoaded) {
+        loadChatHistory();
+        chatHistoryLoaded = true;
+      }
       // 为每个在线用户派生共享密钥
       for (const user of onlineUsers) {
         if (user.publicKey && !sharedSecrets[user.id]) {
@@ -754,7 +887,9 @@ function renderConversations() {
     const last = msgs.length ? msgs[msgs.length - 1] : null;
     const user = onlineUsers.find(u => u.id === uid);
     const friend = friends.find(f => f.id === uid);
-    const name = user?.name || friend?.username || `用户${uid}`;
+    // 优先使用在线用户名/好友名，其次从聊天记录中提取对方名称
+    const name = user?.name || friend?.username
+      || (last && last.name !== myName ? last.name : `用户${uid}`);
     const online = isUserOnline(uid);
     items.push({
       type: 'private',
@@ -856,6 +991,30 @@ function selectContact(userId) {
   const user = onlineUsers.find(u => u.id === userId)
             || (friends.find(f => f.id === userId) ? { id: userId, name: friends.find(f => f.id === userId).username } : null);
   if (!user) {
+    // 如果有聊天记录，允许查看历史消息（用户离线时）
+    const hist = conversations[userId];
+    if (hist && hist.length > 0) {
+      const lastMsg = hist[hist.length - 1];
+      selectedContact = { id: userId, name: lastMsg.name === myName ? `用户${userId}` : lastMsg.name };
+      selectedGroup = null;
+      $('chatPartnerName').textContent = selectedContact.name;
+      $('chatPartnerStatus').textContent = '离线';
+      $('chatPartnerAvatar').textContent = getInitial(selectedContact.name);
+      $('chatPartnerAvatar').style.background = getAvatarColor(selectedContact.name);
+      // 禁用输入（对方离线）
+      $('messageInput').disabled = true;
+      $('sendBtn').disabled = true;
+      $('voiceRecordBtn').disabled = true;
+      $('emojiBtn').disabled = true;
+      $('imageBtn').disabled = true;
+      $('videoSendBtn').disabled = true;
+      $('fileBtn').disabled = true;
+      unreadCounts[convKey('private', userId)] = 0;
+      renderMessages();
+      renderConversations();
+      showChatOnMobile();
+      return;
+    }
     showToast('该用户不在线或不是好友');
     return;
   }
@@ -1125,6 +1284,7 @@ async function sendMessage(content, mediaType = 'text', extra = {}) {
     ...extra,
   });
 
+  saveChatHistory(); // 持久化聊天记录
   renderMessages();
   renderConversations();
 }
@@ -1149,6 +1309,7 @@ async function receiveMessage(fromId, fromName, content, mediaType, timestamp) {
     timestamp,
   });
 
+  saveChatHistory(); // 持久化聊天记录
   const key = convKey('private', fromId);
   if (selectedContact && selectedContact.id === fromId) {
     renderMessages();
@@ -1272,6 +1433,7 @@ function handleRecall(data) {
   }
 
   if (updated) {
+    saveChatHistory(); // 持久化撤回状态
     const conv = getCurrentConversation();
     if (conv && (
       (data.messageType === 'group' && selectedGroup && selectedGroup.id === data.groupId) ||
@@ -1425,6 +1587,7 @@ async function sendGroupMessage(content, mediaType = 'text', extra = {}) {
     ...extra,
   });
 
+  saveChatHistory(); // 持久化聊天记录
   renderMessages();
   renderConversations();
 }
@@ -1486,6 +1649,7 @@ async function receiveGroupMessage(data) {
     fileName: data.fileName,
   });
 
+  saveChatHistory(); // 持久化聊天记录
   const key = convKey('group', gid);
   if (selectedGroup && selectedGroup.id === gid) {
     renderMessages();
@@ -2913,6 +3077,8 @@ function bindEvents() {
   // ===== 退出登录 =====
   $('logoutBtn').addEventListener('click', handleLogout);
   $('settingsLogoutBtn').addEventListener('click', handleLogout);
+  $('settingsSwitchAccountBtn').addEventListener('click', handleSwitchAccount);
+  $('settingsClearChatBtn').addEventListener('click', handleClearChat);
   $('settingsAdminBtn').addEventListener('click', showAdminPanel);
 
   // ===== 管理员面板 =====
