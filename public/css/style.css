@@ -176,6 +176,9 @@ html, body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 全屏适配：填充状态栏和导航栏区域 */
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* 主背景使用主题渐变 + 缓慢流动动画 */
@@ -291,7 +294,7 @@ body.theme-dark .orb { opacity: 0.28; mix-blend-mode: screen; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
 .login-card {

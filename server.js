@@ -245,6 +245,17 @@ app.get('/GlassChat.apk', (req, res) => {
   res.sendFile(apkPath);
 });
 
+// APK 版本信息（供 APP 内置更新检查使用）
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: '1.0',
+    versionCode: 1,
+    apkUrl: '/GlassChat.apk',
+    downloadUrl: '/GlassChat.apk',
+    updateInfo: 'GlassChat 最新版本'
+  });
+});
+
 /**
  * 数字资产链接（TWA 验证）
  * Android TWA APK 通过访问 /.well-known/assetlinks.json 验证网站所有权

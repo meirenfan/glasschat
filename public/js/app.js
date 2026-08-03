@@ -536,6 +536,53 @@ function handleClearChat() {
   }
 }
 
+// ====================== 检查更新 ======================
+const APP_VERSION = '1.0';
+const APP_VERSION_CODE = 1;
+
+async function checkForUpdates() {
+  const btn = $('checkUpdateBtn');
+  const result = $('updateResult');
+  if (!btn || !result) return;
+
+  btn.disabled = true;
+  btn.textContent = '正在检查更新...';
+  result.classList.remove('hidden');
+  result.style.background = 'rgba(116,198,157,0.15)';
+  result.style.color = 'var(--text-primary)';
+  result.textContent = '正在连接服务器检查版本...';
+
+  try {
+    const url = (typeof SERVER_URL !== 'undefined' ? SERVER_URL : '') + '/api/version';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('服务器响应异常');
+    const data = await res.json();
+
+    const serverVersionCode = data.versionCode || 1;
+    const serverVersion = data.version || '1.0';
+
+    if (serverVersionCode > APP_VERSION_CODE) {
+      result.style.background = 'rgba(255,159,10,0.15)';
+      result.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">发现新版本 v${serverVersion}</div>` +
+        `<div style="margin-bottom:10px;">${data.updateInfo || '有新版本可用'}</div>` +
+        `<a href="${(typeof SERVER_URL !== 'undefined' ? SERVER_URL : '') + data.downloadUrl}" ` +
+        `style="display:inline-block;padding:10px 20px;background:var(--btn-highlight);color:#fff;` +
+        `border-radius:12px;text-decoration:none;font-weight:600;">立即下载更新</a>`;
+    } else {
+      result.style.background = 'rgba(48,209,88,0.15)';
+      result.innerHTML = `<div style="font-weight:600;">当前已是最新版本 v${APP_VERSION}</div>` +
+        `<div style="margin-top:4px;font-size:12px;opacity:0.7;">服务器版本: v${serverVersion}</div>`;
+    }
+  } catch (err) {
+    result.style.background = 'rgba(255,69,58,0.15)';
+    result.style.color = '#FF453A';
+    result.textContent = '检查更新失败: ' + (err.message || '网络错误') + '\n请确认网络连接正常后重试。';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '检查更新';
+}
+
 // ====================== 主题系统 ======================
 
 // 加载主题与自定义颜色
@@ -3082,6 +3129,15 @@ function bindEvents() {
   $('settingsSwitchAccountBtn').addEventListener('click', handleSwitchAccount);
   $('settingsClearChatBtn').addEventListener('click', handleClearChat);
   $('settingsAdminBtn').addEventListener('click', showAdminPanel);
+
+  // ===== 检查更新 =====
+  $('checkUpdateBtn').addEventListener('click', checkForUpdates);
+  // 显示服务器地址
+  if (typeof SERVER_URL !== 'undefined') {
+    $('serverUrlDisplay').textContent = SERVER_URL.replace(/^https?:\/\//, '');
+  } else {
+    $('serverUrlDisplay').textContent = location.host || '本地';
+  }
 
   // ===== 管理员面板 =====
   $('adminEnterChatBtn').addEventListener('click', enterChat);
