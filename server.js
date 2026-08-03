@@ -1000,12 +1000,13 @@ app.get('/api/friends', authMiddleware, (req, res) => {
 /**
  * GET /api/all-approved-users
  * 获取所有已审核通过的用户（用于添加好友，排除自己）
+ * 包含在线状态信息
  */
 app.get('/api/all-approved-users', authMiddleware, (req, res) => {
   const usersData = loadUsers();
   const users = usersData.users
     .filter((u) => u.status === 'approved' && u.id !== req.user.id)
-    .map((u) => ({ id: u.id, username: u.username }));
+    .map((u) => ({ id: u.id, username: u.username, online: userConnections.has(u.id) }));
   res.json({ users });
 });
 

@@ -731,6 +731,8 @@ function fallbackDownload(url) {
 
 // 确保函数在全局作用域可访问（inline onclick 需要）
 window.downloadUpdate = downloadUpdate;
+window.sendFriendRequestById = sendFriendRequestById;
+window.chatWithOnlineUser = chatWithOnlineUser;
 
 async function checkForUpdates() {
   var btn = $('checkUpdateBtn');
@@ -2247,7 +2249,7 @@ function onFriendSearchInput() {
     $('friendSearchResults').innerHTML = results.map(u => `
       <div class="member-pick-item">
         <div class="conv-avatar" style="width:32px;height:32px;font-size:13px;background:${getAvatarColor(u.username)}">${getInitial(u.username)}</div>
-        <span style="flex:1">${escapeHtml(u.username)}</span>
+        <span style="flex:1">${escapeHtml(u.username)}${u.online ? ' <span style="color:var(--green);font-size:12px;">在线</span>' : ' <span style="color:var(--gray);font-size:12px;">离线</span>'}</span>
         <button class="mini-btn blue" onclick="sendFriendRequest(${u.id})">加好友</button>
       </div>`).join('');
   }, 300);
@@ -2325,24 +2327,78 @@ function renderFriendsList() {
   if (!list) return;
   if (friends.length === 0) {
     list.innerHTML = '<div class="empty-state">暂无好友，点击右上角添加</div>';
+  } else {
+    list.innerHTML = friends.map(f => {
+      const online = isUserOnline(f.id);
+      return `
+        <div class="friend-item">
+          <div class="conv-avatar" style="background:${getAvatarColor(f.username)}">${getInitial(f.username)}${online ? '<span class="conv-online"></span>' : ''}</div>
+          <div class="friend-info">
+            <div class="friend-name">${escapeHtml(f.username)}</div>
+            <div class="friend-status">${online ? '在线' : '离线'}</div>
+          </div>
+          <div class="friend-actions">
+            <button class="mini-btn blue" onclick="startChatWithFriend(${f.id})">发消息</button>
+            <button class="mini-btn neutral" onclick="removeFriend(${f.id})">删除</button>
+            <button class="mini-btn reject" onclick="blockUser(${f.id})">屏蔽</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  // 同时渲染在线用户列表
+  renderOnlineUsersList();
+}
+
+/** 渲染在线用户列表（通讯录页面，用于发现其他在线用户） */
+function renderOnlineUsersList() {
+  var list = $('onlineUsersList');
+  if (!list) return;
+  if (onlineUsers.length === 0) {
+    list.innerHTML = '<div class="empty-state">暂无其他在线用户</div>';
     return;
   }
-  list.innerHTML = friends.map(f => {
-    const online = isUserOnline(f.id);
-    return `
-      <div class="friend-item">
-        <div class="conv-avatar" style="background:${getAvatarColor(f.username)}">${getInitial(f.username)}${online ? '<span class="conv-online"></span>' : ''}</div>
-        <div class="friend-info">
-          <div class="friend-name">${escapeHtml(f.username)}</div>
-          <div class="friend-status">${online ? '在线' : '离线'}</div>
-        </div>
-        <div class="friend-actions">
-          <button class="mini-btn blue" onclick="startChatWithFriend(${f.id})">发消息</button>
-          <button class="mini-btn neutral" onclick="removeFriend(${f.id})">删除</button>
-          <button class="mini-btn reject" onclick="blockUser(${f.id})">屏蔽</button>
-        </div>
-      </div>`;
-  }).join('');
+  // 过滤掉已经是好友的
+  var friendIds = friends.map(f => f.id);
+  var displayUsers = onlineUsers.filter(u => !friendIds.includes(u.id));
+
+  if (displayUsers.length === 0) {
+    list.innerHTML = '<div class="empty-state">所有在线用户已是你的好友</div>';
+    return;
+  }
+  list.innerHTML = displayUsers.map(u => `
+    <div class="friend-item">
+      <div class="conv-avatar" style="background:${getAvatarColor(u.name)}">${getInitial(u.name)}<span class="conv-online"></span></div>
+      <div class="friend-info">
+        <div class="friend-name">${escapeHtml(u.name)}</div>
+        <div class="friend-status" style="color:var(--green);">在线</div>
+      </div>
+      <div class="friend-actions">
+        <button class="mini-btn blue" onclick="sendFriendRequestById('${u.id}')">加好友</button>
+        <button class="mini-btn neutral" onclick="chatWithOnlineUser('${u.id}')">发消息</button>
+      </div>
+    </div>`).join('');
+}
+
+/** 向在线用户发送好友请求（通过在线用户ID） */
+async function sendFriendRequestById(onlineId) {
+  // onlineId 可能是 WebSocket 分配的 ID（等于数据库 user.id）
+  try {
+    await api('add-friend', 'POST', { userId: parseInt(onlineId) });
+    showToast('好友请求已发送');
+  } catch (err) {
+    showToast('发送失败: ' + err.message);
+  }
+}
+
+/** 直接与在线用户开始聊天 */
+function chatWithOnlineUser(onlineId) {
+  var user = onlineUsers.find(u => String(u.id) === String(onlineId));
+  if (!user) {
+    showToast('用户已下线');
+    return;
+  }
+  switchTab('chat');
+  selectContact(parseInt(onlineId));
 }
 
 function renderFriendRequests() {
