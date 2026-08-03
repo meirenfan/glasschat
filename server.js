@@ -237,6 +237,14 @@ app.use(express.json());
 // 静态文件服务（前端页面）—— dotfiles: 'allow' 确保 .well-known 目录可访问
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
+// APK 下载直链
+app.get('/GlassChat.apk', (req, res) => {
+  const apkPath = path.join(__dirname, 'public', 'GlassChat.apk');
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="GlassChat.apk"');
+  res.sendFile(apkPath);
+});
+
 /**
  * 数字资产链接（TWA 验证）
  * Android TWA APK 通过访问 /.well-known/assetlinks.json 验证网站所有权
